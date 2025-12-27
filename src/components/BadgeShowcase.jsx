@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { getAuth, saveAuth } from "../authStorage";
 
-const API_BASE = "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 // Tooltip for full description on hover (optional)
 function BadgeTooltip({ text }) {

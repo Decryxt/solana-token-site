@@ -4,7 +4,7 @@ import { getAuth } from "../authStorage";
 import { FaSearch } from "react-icons/fa";
 import TokenAnalyticsDetailPanel from "./TokenAnalyticsDetailPanel";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 export default function TokenAnalyticsPanel() {
   const [tokens, setTokens] = useState([]);

@@ -37,7 +37,8 @@ export default function App() {
   const [theme, setTheme] = useState("dark");
 
   // ✅ Backend API base (works locally + in production)
-  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000";
+  const API_BASE = import.meta.env.VITE_API_URL;
+    if (!API_BASE) throw new Error("VITE_API_URL is not set");
 
   // ✅ Solana RPC endpoint based on selected network
   // (Your Settings page can change this via setNetwork)

@@ -60,7 +60,7 @@ export default function TokenCreationForm() {
       setLoading(true);
       setStatus("⏳ Creating token on OriginFi backend...");
 
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4000";
+      const apiBase = import.meta.env.VITE_API_URL;
 
       const body = {
         name: formData.name,
