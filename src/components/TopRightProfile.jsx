@@ -35,6 +35,24 @@ export default function TopRightProfile({ setPage }) {
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
+  const syncSubscriptionStatus = async (token) => {
+  try {
+    const res = await fetch(`${API_BASE}/api/subscription/sync`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    return data?.pro === true;
+  } catch {
+    return null;
+  }
+};
+
   // On mount: read stored auth + refresh /me if token exists
   useEffect(() => {
     const stored = getAuth();
@@ -65,9 +83,14 @@ export default function TopRightProfile({ setPage }) {
           return;
         }
 
+        const isPro = await syncSubscriptionStatus(stored.token);
+
         const updatedAuth = {
           token: stored.token,
-          user: data.user || null,
+          user: {
+            ...data.user,
+            isPro: !!isPro,
+          },
         };
 
         saveAuth(updatedAuth.token, updatedAuth.user);
@@ -91,6 +114,7 @@ export default function TopRightProfile({ setPage }) {
   }, [showModal]);
 
   const isLoggedIn = !!auth.token;
+  const isPro = auth.user?.isPro === true;
   const userEmail = auth.user?.email;
 
   const userName =
@@ -369,7 +393,14 @@ export default function TopRightProfile({ setPage }) {
                 <div className="space-y-2">
                   <div className="flex justify-between gap-3">
                     <span className="text-gray-400">Status</span>
-                    <span className="text-right text-gray-100">Active</span>
+                    <span className="text-right font-semibold">
+                      {isPro ? (
+                        <span className="text-[#1CEAB9]">Pro</span>
+                      ) : (
+                        <span className="text-gray-400">Free</span>
+                      )}
+                    </span>
+
                   </div>
                 </div>
 
@@ -381,12 +412,19 @@ export default function TopRightProfile({ setPage }) {
                   >
                     Edit Profile
                   </button>
-                  <button
-                    onClick={handleUpgrade}
-                    className="w-full py-1.5 rounded-lg bg-transparent border border-[#1CEAB9] text-[11px] font-semibold text-[#1CEAB9] hover:bg-[#1CEAB9]/10 transition"
-                  >
-                    Upgrade to Pro
-                  </button>
+                  {!isPro ? (
+                    <button
+                      onClick={handleUpgrade}
+                      className="w-full py-1.5 rounded-lg bg-transparent border border-[#1CEAB9] text-[11px] font-semibold text-[#1CEAB9] hover:bg-[#1CEAB9]/10 transition"
+                    >
+                      Upgrade to Pro
+                    </button>
+                  ) : (
+                    <div className="w-full py-1.5 rounded-lg text-center text-[11px] font-semibold text-[#1CEAB9] border border-[#1CEAB9]/40">
+                      Pro Active ✓
+                    </div>
+                  )}
+
                   <button
                     onClick={handleSignOut}
                     className="w-full py-1.5 rounded-lg bg-transparent border border-red-500/60 text-[11px] font-semibold text-red-400 hover:bg-red-500/10 transition"
