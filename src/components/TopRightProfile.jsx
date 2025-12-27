@@ -104,6 +104,28 @@ export default function TopRightProfile({ setPage }) {
     fetchMe();
   }, []);
 
+  // Re-sync Pro status anytime token changes (login/logout)
+  useEffect(() => {
+    const run = async () => {
+      if (!auth?.token) return;
+
+      const pro = await syncSubscriptionStatus(auth.token);
+      const updatedAuth = {
+        token: auth.token,
+        user: {
+          ...(auth.user || {}),
+          isPro: !!pro,
+        },
+      };
+
+      saveAuth(updatedAuth.token, updatedAuth.user);
+      setAuth(updatedAuth);
+    };
+
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.token]);
+
   useEffect(() => {
     if (showModal) {
       const t = setTimeout(() => setModalAnimateIn(true), 10);
