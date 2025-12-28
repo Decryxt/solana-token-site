@@ -1,21 +1,18 @@
-// vite.config.js
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    nodePolyfills({
+      globals: { Buffer: true },
+    }),
+  ],
   optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: 'globalThis', // Needed for polyfills
-      },
-      plugins: [
-        NodeGlobalsPolyfillPlugin({
-          buffer: true,
-          process: true,
-        }),
-      ],
-    },
+    include: ["buffer"],
+  },
+  define: {
+    global: "globalThis",
   },
 });
