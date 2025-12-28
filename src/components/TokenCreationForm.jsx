@@ -1,11 +1,28 @@
 import React, { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  LAMPORTS_PER_SOL,
+  clusterApiUrl,
+} from "@solana/web3.js";
+import {
+  createInitializeMintInstruction,
+  createAssociatedTokenAccountInstruction,
+  createMintToInstruction,
+  getAssociatedTokenAddress,
+  MINT_SIZE,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import { FaInfoCircle, FaMoneyBillWave, FaUsers } from "react-icons/fa";
 import { getAuth } from "../authStorage";
 
 export default function TokenCreationForm() {
   const wallet = useWallet();
-  const { publicKey } = wallet;
+  const { publicKey, sendTransaction } = wallet;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -34,53 +51,198 @@ export default function TokenCreationForm() {
     }
   };
 
+  const toBaseUnitsBigInt = (supplyStr, decimalsNum) => {
+    // supplyStr is whole-token units (no decimals input in UI right now)
+    // Convert to base units using BigInt to avoid floating errors.
+    const clean = String(supplyStr || "").trim();
+    if (!/^\d+$/.test(clean)) return null;
+
+    const supply = BigInt(clean);
+    const factor = 10n ** BigInt(decimalsNum);
+    return supply * factor;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("");
 
-    if (!publicKey) {
-      alert("❌ Please connect your wallet first.");
-      return;
-    }
-
-    const auth = getAuth();
-    const token = auth?.token;
-
-    if (!token) {
-      alert("❌ You must be logged in to create a token.");
-      return;
-    }
-
-    if (!formData.supply || Number(formData.supply) <= 0) {
-      alert("❌ Please enter a valid total supply.");
-      return;
-    }
-
     try {
-      setLoading(true);
-      setStatus("⏳ Creating token on OriginFi backend...");
+      if (!publicKey) {
+        alert("Please connect your wallet first.");
+        return;
+      }
+      if (!sendTransaction) {
+        alert("Wallet does not support sending transactions.");
+        return;
+      }
 
-      const apiBase = import.meta.env.VITE_API_URL;
+      const auth = getAuth();
+      const token = auth?.token;
+
+      if (!token) {
+        alert("You must be logged in to create a token.");
+        return;
+      }
+
+      if (!formData.supply || Number(formData.supply) <= 0) {
+        alert("Please enter a valid total supply.");
+        return;
+      }
+
+      const decimals = Number(formData.decimals);
+      if (Number.isNaN(decimals) || decimals < 0 || decimals > 18) {
+        alert("Decimals must be between 0 and 18.");
+        return;
+      }
+
+      const baseUnits = toBaseUnitsBigInt(formData.supply, decimals);
+      if (baseUnits == null) {
+        alert("Supply must be a whole number.");
+        return;
+      }
+
+      // ---- Config (env) ----
+      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4000";
+
+      const treasuryStr = import.meta.env.VITE_ORIGINFI_TREASURY;
+      if (!treasuryStr) {
+        alert("OriginFi treasury wallet is not configured (VITE_ORIGINFI_TREASURY).");
+        return;
+      }
+      const treasuryPubkey = new PublicKey(treasuryStr);
+
+      const feeSol = Number(import.meta.env.VITE_ORIGINFI_MINT_FEE_SOL || "0.05");
+      const feeLamports = Math.round(feeSol * LAMPORTS_PER_SOL);
+      if (!Number.isFinite(feeLamports) || feeLamports <= 0) {
+        alert("OriginFi mint fee is not configured correctly.");
+        return;
+      }
+
+      // For now keep devnet; when you flip to mainnet, change to "mainnet-beta"
+      const network = "devnet";
+      const connection = new Connection(clusterApiUrl(network), "confirmed");
+
+      setLoading(true);
+      setStatus("Building transaction...");
+
+      // ---- Build mint transaction (user pays + signs) ----
+      const mintKeypair = Keypair.generate();
+      const mintPubkey = mintKeypair.publicKey;
+
+      const ata = await getAssociatedTokenAddress(mintPubkey, publicKey);
+
+      const lamportsForMint = await connection.getMinimumBalanceForRentExemption(
+        MINT_SIZE
+      );
+
+      const tx = new Transaction();
+
+      // 1) Pay OriginFi fee
+      tx.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: treasuryPubkey,
+          lamports: feeLamports,
+        })
+      );
+
+      // 2) Create mint account (payer is user)
+      tx.add(
+        SystemProgram.createAccount({
+          fromPubkey: publicKey,
+          newAccountPubkey: mintPubkey,
+          space: MINT_SIZE,
+          lamports: lamportsForMint,
+          programId: TOKEN_PROGRAM_ID,
+        })
+      );
+
+      // 3) Initialize mint (mint authority = user, freeze authority = user)
+      tx.add(
+        createInitializeMintInstruction(
+          mintPubkey,
+          decimals,
+          publicKey,
+          publicKey,
+          TOKEN_PROGRAM_ID
+        )
+      );
+
+      // 4) Create ATA (payer is user)
+      tx.add(
+        createAssociatedTokenAccountInstruction(
+          publicKey, // payer
+          ata, // ata
+          publicKey, // owner
+          mintPubkey // mint
+        )
+      );
+
+      // 5) Mint to ATA (mint authority is user)
+      tx.add(createMintToInstruction(mintPubkey, ata, publicKey, baseUnits));
+
+      tx.feePayer = publicKey;
+      const latest = await connection.getLatestBlockhash("confirmed");
+      tx.recentBlockhash = latest.blockhash;
+
+      // Mint account must sign; user signs via wallet
+      tx.partialSign(mintKeypair);
+
+      setStatus("Please approve the transaction in your wallet...");
+
+      const sig = await sendTransaction(tx, connection);
+
+      setStatus("Confirming transaction on Solana...");
+
+      const conf = await connection.confirmTransaction(
+        {
+          signature: sig,
+          blockhash: latest.blockhash,
+          lastValidBlockHeight: latest.lastValidBlockHeight,
+        },
+        "confirmed"
+      );
+
+      if (conf?.value?.err) {
+        console.error("Transaction failed:", conf.value.err);
+        setStatus("Transaction failed. See console for details.");
+        return;
+      }
+
+      // ---- Save to OriginFi backend (verify + store) ----
+      // NOTE: We keep all metadata fields here so later we can wire Metaplex.
+      setStatus("Saving token to OriginFi...");
 
       const body = {
+        // On-chain proof fields
+        network, // devnet for now; mainnet later
+        txSignature: sig,
+        mintAddress: mintPubkey.toBase58(),
+        ataAddress: ata.toBase58(),
+        ownerWallet: publicKey.toBase58(),
+        feeLamports,
+
+        // Token config fields (DB + future metadata)
         name: formData.name,
         symbol: formData.symbol,
-        decimals: Number(formData.decimals),
+        decimals,
         initialSupply: String(formData.supply),
-        network: "devnet", // for now
-        ownerWallet: publicKey.toBase58(),
-        // In the future we can add:
-        // description: formData.description,
-        // imageURI: formData.imageURI,
-        // sellerFeeBasisPoints: Number(formData.sellerFeeBasisPoints),
-        // creators: formData.creators.split(",").map((c) => c.trim()).filter(Boolean),
+
+        // metadata fields (we will use later for Metaplex)
+        description: formData.description,
+        imageURI: formData.imageURI,
+        sellerFeeBasisPoints: Number(formData.sellerFeeBasisPoints || 0),
+        creators: String(formData.creators || "")
+          .split(",")
+          .map((c) => c.trim())
+          .filter(Boolean),
       };
 
-      const res = await fetch(`${apiBase}/api/token/create`, {
+      const res = await fetch(`${apiBase}/api/token/confirm-mint`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // IMPORTANT for requireAuth
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(body),
       });
@@ -88,35 +250,27 @@ export default function TokenCreationForm() {
       const data = await res.json();
 
       if (!res.ok || data.ok === false) {
-        console.error("Create token error:", data);
-        const message =
-          data?.error || data?.details || "Failed to create token.";
-        setStatus(`❌ ${message}`);
-        alert(`❌ Failed to create token.\n${message}`);
+        console.error("Confirm mint error:", data);
+        const message = data?.error || data?.details || "Failed to save token.";
+        setStatus(`Failed to save token: ${message}`);
+        alert(`Mint succeeded, but saving failed: ${message}`);
         return;
       }
 
-      // Backend shape: { ok: true, token, onchain }
-      const { onchain } = data;
-
       setStatus(
         [
-          "✅ Token minted on Solana and saved to OriginFi.",
-          `Mint: ${onchain.mintAddress}`,
-          `ATA: ${onchain.ata}`,
-          `Tx: ${onchain.txSignature}`,
+          "Token minted and saved to OriginFi.",
+          `Mint: ${mintPubkey.toBase58()}`,
+          `ATA: ${ata.toBase58()}`,
+          `Tx: ${sig}`,
         ].join("\n")
       );
 
-      console.log("Token created:", data);
-
-      alert(
-        `✅ Token minted on Solana.\nMint: ${onchain.mintAddress}\nTx: ${onchain.txSignature}`
-      );
+      alert(`Token minted.\nMint: ${mintPubkey.toBase58()}\nTx: ${sig}`);
     } catch (err) {
-      console.error("❌ Error calling /api/token/create:", err);
-      setStatus("❌ Unexpected error while creating token. Check console.");
-      alert("❌ Unexpected error while creating token. Check console.");
+      console.error("Mint flow error:", err);
+      setStatus("Unexpected error while creating token. Check console.");
+      alert("Unexpected error while creating token. Check console.");
     } finally {
       setLoading(false);
     }
