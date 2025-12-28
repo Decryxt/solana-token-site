@@ -1,12 +1,3 @@
-import { Buffer } from "buffer";
-import process from "process";
-
-globalThis.Buffer = Buffer;
-globalThis.process = process;
-
-window.Buffer = Buffer;
-window.process = process;
-
 import React from "react";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import ReactDOM from "react-dom/client";
