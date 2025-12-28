@@ -19,6 +19,10 @@ import {
 } from "@solana/spl-token";
 import { FaInfoCircle, FaMoneyBillWave, FaUsers } from "react-icons/fa";
 import { getAuth } from "../authStorage";
+import {
+  createCreateMetadataAccountV3Instruction,
+  PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID,
+} from "@metaplex-foundation/mpl-token-metadata";
 
 export default function TokenCreationForm() {
   const wallet = useWallet();
@@ -180,6 +184,47 @@ export default function TokenCreationForm() {
 
       // 5) Mint to ATA (mint authority is user)
       tx.add(createMintToInstruction(mintPubkey, ata, publicKey, baseUnits));
+      // 6) Create Metaplex metadata (so Phantom shows name/symbol/image)
+      // NOTE: This URI MUST be publicly reachable (https), not localhost.
+      const metadataUrl = `${apiBase}/api/metadata/${mintPubkey.toBase58()}.json`;
+
+      // Derive Metadata PDA
+      const [metadataPda] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+          mintPubkey.toBuffer(),
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+
+      // Create metadata account instruction
+      tx.add(
+        createCreateMetadataAccountV3Instruction(
+          {
+            metadata: metadataPda,
+            mint: mintPubkey,
+            mintAuthority: publicKey,
+            payer: publicKey,
+            updateAuthority: publicKey,
+          },
+          {
+            createMetadataAccountArgsV3: {
+              data: {
+                name: formData.name, // keep <= 32 chars
+                symbol: formData.symbol, // keep <= 10 chars
+                uri: metadataUrl, // points to your JSON
+                sellerFeeBasisPoints: Number(formData.sellerFeeBasisPoints || 0),
+                creators: null,
+                collection: null,
+                uses: null,
+              },
+              isMutable: true,
+              collectionDetails: null,
+            },
+          }
+        )
+      );
 
       tx.feePayer = publicKey;
       const latest = await connection.getLatestBlockhash("confirmed");
