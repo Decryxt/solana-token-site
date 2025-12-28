@@ -19,10 +19,11 @@ import {
 } from "@solana/spl-token";
 import { FaInfoCircle, FaMoneyBillWave, FaUsers } from "react-icons/fa";
 import { getAuth } from "../authStorage";
-import {
-  createCreateMetadataAccountV3Instruction,
-  PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID,
-} from "@metaplex-foundation/mpl-token-metadata";
+import { createCreateMetadataAccountV3Instruction } from "@metaplex-foundation/mpl-token-metadata";
+  const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
+  "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+);
+
 
 export default function TokenCreationForm() {
   const wallet = useWallet();
