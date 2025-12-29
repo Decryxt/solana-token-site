@@ -170,7 +170,7 @@ export default function ApproveDelegate({ onBack }) {
             Approve a delegate to spend tokens from a specific token account (ATA).
             This does not transfer ownership — it grants limited spending permission.
           </p>
-          <p className="text-sm italic text-[#14b89c]">Pro feature • Service fee applies</p>
+          <p className="text-sm italic text-[#14b89c]">Estimated cost: ~0.02 SOL</p>
         </div>
 
         <div className="h-[80%] w-[2px] bg-[#1CEAB9] rounded-full opacity-60 mx-4 self-center" />

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { FaUserTimes, FaArrowLeft } from "react-icons/fa";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey, clusterApiUrl, Transaction } from "@solana/web3.js";
+import { SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
   getAccount,
@@ -85,9 +86,31 @@ export default function RevokeDelegate({ onBack }) {
         TOKEN_PROGRAM_ID
       );
 
-      const tx = new Transaction().add(ix);
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, "confirmed");
+      const treasuryStr = import.meta.env.VITE_ORIGINFI_TREASURY;
+        if (!treasuryStr) {
+          throw new Error("Treasury wallet not configured (VITE_ORIGINFI_TREASURY).");
+        }
+        const treasuryPubkey = new PublicKey(treasuryStr);
+
+        const feeLamports = Math.round(0.02 * LAMPORTS_PER_SOL);
+
+        const tx = new Transaction();
+
+        // 1) Pay OriginFi fee FIRST
+        tx.add(
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: treasuryPubkey,
+            lamports: feeLamports,
+          })
+        );
+
+        // 2) Revoke delegate instruction (existing ix)
+        tx.add(ix);
+
+        // keep the rest of your send / confirm logic exactly as-is
+        const sig = await sendTransaction(tx, connection);
+        await connection.confirmTransaction(sig, "confirmed");
 
       alert(`✅ Delegate revoked!\nTx:\n${sig}`);
       setSelectedTokenAccount("");
@@ -126,7 +149,7 @@ export default function RevokeDelegate({ onBack }) {
           <p className="mb-4 leading-relaxed">
             Removes the delegate’s spending permission from a token account (ATA).
           </p>
-          <p className="text-sm italic text-[#14b89c]">Pro feature • Service fee applies</p>
+          <p className="text-sm italic text-[#14b89c]">Estimated cost: ~0.02 SOL</p>
         </div>
 
         <div className="h-[80%] w-[2px] bg-[#1CEAB9] rounded-full opacity-60 mx-4 self-center" />
