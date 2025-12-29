@@ -52,9 +52,14 @@ export default function TokenCreationForm() {
     if (name === "imageFile") {
       if (files && files[0]) {
         const url = URL.createObjectURL(files[0]);
-        setFormData((prev) => ({ ...prev, imageURI: url }));
+        setFormData((prev) => ({
+          ...prev,
+          imageURI: url,     // preview
+          imageFile: files[0] // ✅ real file for upload
+        }));
       }
-    } else {
+    }
+ else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
@@ -69,6 +74,26 @@ export default function TokenCreationForm() {
     const factor = 10n ** BigInt(decimalsNum);
     return supply * factor;
   };
+
+  async function uploadToIrys({ name, symbol, description, imageFile }) {
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("symbol", symbol);
+    fd.append("description", description || "Created on OriginFi.");
+    fd.append("image", imageFile);
+
+    const res = await fetch("https://api.originfi.net/api/metadata/upload", {
+      method: "POST",
+      body: fd,
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      throw new Error(data?.error || "Metadata upload failed");
+    }
+
+    return data; // { imageUrl, metadataUrl }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -190,7 +215,19 @@ export default function TokenCreationForm() {
       tx.add(createMintToInstruction(mintPubkey, ata, publicKey, baseUnits));
       // 6) Create Metaplex metadata (so Phantom shows name/symbol/image)
       // NOTE: This URI MUST be publicly reachable (https), not localhost.
-      const metadataUrl = `${apiBase}/api/metadata/${mintPubkey.toBase58()}.json`;
+      if (!formData.imageFile) {
+        alert("Please upload a logo image first.");
+        return;
+      }
+
+      setStatus("Uploading metadata...");
+
+      const { metadataUrl, imageUrl } = await uploadToIrys({
+        name: formData.name,
+        symbol: formData.symbol,
+        description: formData.description,
+        imageFile: formData.imageFile,
+      });
 
       // Derive Metadata PDA
       const [metadataPda] = PublicKey.findProgramAddressSync(
