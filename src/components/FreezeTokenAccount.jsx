@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FaShieldAlt, FaArrowLeft } from "react-icons/fa";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+
 import {
   Connection,
   PublicKey,
@@ -97,9 +99,30 @@ export default function FreezeTokenAccount({ onBack }) {
       // Create freeze account instruction
       const ix = createFreezeAccountInstruction(tokenAccountPubkey, mintPubkey, publicKey);
 
-      const tx = new Transaction().add(ix);
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, "confirmed");
+      const treasuryStr = import.meta.env.VITE_ORIGINFI_TREASURY;
+        if (!treasuryStr) {
+          throw new Error("Treasury wallet not configured (VITE_ORIGINFI_TREASURY).");
+        }
+        const treasuryPubkey = new PublicKey(treasuryStr);
+
+        const feeLamports = Math.round(0.02 * LAMPORTS_PER_SOL);
+
+        const tx = new Transaction();
+
+        // 1) Pay OriginFi fee FIRST
+        tx.add(
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: treasuryPubkey,
+            lamports: feeLamports,
+          })
+        );
+
+        // 2) Freeze token account (existing instruction)
+        tx.add(ix);
+
+        const sig = await sendTransaction(tx, connection);
+        await connection.confirmTransaction(sig, "confirmed");
 
       alert(`✅ Token account frozen!\nTransaction Signature:\n${sig}`);
       setSelectedTokenAccount("");
