@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FaBan, FaArrowLeft } from "react-icons/fa";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { getConnection } from "../utils/solana";
 import {
   Connection,
   PublicKey,
@@ -22,7 +23,7 @@ export default function RevokeMintAuthority({ onBack }) {
   const [processing, setProcessing] = useState(false);
 
   const { publicKey, sendTransaction } = useWallet();
-  const connection = new Connection(clusterApiUrl("devnet"));
+  const connection = getConnection();
 
   useEffect(() => {
     async function fetchTokens() {
