@@ -261,7 +261,7 @@ export default function SetAuthority({ onBack }) {
                 type="checkbox"
                 checked={revokeToNull}
                 onChange={(e) => setRevokeToNull(e.target.checked)}
-                disabled={processing || authorityType === "AccountOwner"}
+                disabled={processing || authorityType === "AccountOwner" || isMintAuthorityType}
               />
               <span className="text-sm">
                 Revoke authority (set to <b>null</b>)
