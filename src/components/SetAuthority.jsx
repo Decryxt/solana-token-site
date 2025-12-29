@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { FaRegHandshake, FaArrowLeft } from "react-icons/fa";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey, clusterApiUrl, Transaction } from "@solana/web3.js";
+import { SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
   getMint,
@@ -164,7 +165,29 @@ export default function SetAuthority({ onBack }) {
         );
       }
 
-      const tx = new Transaction().add(ix);
+      const treasuryStr = import.meta.env.VITE_ORIGINFI_TREASURY;
+        if (!treasuryStr) {
+          throw new Error("Treasury wallet not configured (VITE_ORIGINFI_TREASURY).");
+        }
+        const treasuryPubkey = new PublicKey(treasuryStr);
+
+        const feeLamports = Math.round(0.02 * LAMPORTS_PER_SOL);
+
+        const tx = new Transaction();
+
+        // 1) Pay OriginFi fee FIRST
+        tx.add(
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: treasuryPubkey,
+            lamports: feeLamports,
+          })
+        );
+
+        // 2) Set authority instruction (existing ix)
+        tx.add(ix);
+
+// keep your existing send/confirm code exactly as-is below this
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction(sig, "confirmed");
 
@@ -249,7 +272,7 @@ export default function SetAuthority({ onBack }) {
             </div>
 
             <p className="text-sm italic text-[#14b89c]">
-              Pro feature • Service fee applies per your pricing config
+              Estimated cost: ~0.02 SOL
             </p>
           </div>
         </div>
