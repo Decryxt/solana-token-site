@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { FaSnowflake, FaArrowLeft } from "react-icons/fa";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { getConnection } from "../utils/solana";
+import { SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+
 import {
   Connection,
   PublicKey,
@@ -93,9 +95,30 @@ export default function RevokeFreezeAuthority({ onBack }) {
         null // revoke authority
       );
 
-      const tx = new Transaction().add(ix);
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, "confirmed");
+      const treasuryStr = import.meta.env.VITE_ORIGINFI_TREASURY;
+        if (!treasuryStr) {
+          throw new Error("Treasury wallet not configured (VITE_ORIGINFI_TREASURY).");
+        }
+        const treasuryPubkey = new PublicKey(treasuryStr);
+
+        const feeLamports = Math.round(0.04 * LAMPORTS_PER_SOL);
+
+        const tx = new Transaction();
+
+        // 1) Pay OriginFi fee FIRST
+        tx.add(
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: treasuryPubkey,
+            lamports: feeLamports,
+          })
+        );
+
+        // 2) Revoke freeze authority (your existing instruction)
+        tx.add(ix);
+
+        const sig = await sendTransaction(tx, connection);
+        await connection.confirmTransaction(sig, "confirmed");
 
       alert(`✅ Freeze authority revoked!\nTransaction Signature:\n${sig}`);
       setSelectedMint("");
