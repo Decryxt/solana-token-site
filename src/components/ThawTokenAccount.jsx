@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FaShieldAlt, FaArrowLeft } from "react-icons/fa";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+
 import {
   Connection,
   PublicKey,
@@ -95,7 +97,28 @@ export default function ThawTokenAccount({ onBack }) {
       }
 
       const ix = createThawAccountInstruction(tokenAccountPubkey, mintPubkey, publicKey);
-      const tx = new Transaction().add(ix);
+
+      const treasuryStr = import.meta.env.VITE_ORIGINFI_TREASURY;
+      if (!treasuryStr) {
+        throw new Error("Treasury wallet not configured (VITE_ORIGINFI_TREASURY).");
+      }
+      const treasuryPubkey = new PublicKey(treasuryStr);
+
+      const feeLamports = Math.round(0.02 * LAMPORTS_PER_SOL);
+
+      const tx = new Transaction();
+
+      // 1) Pay OriginFi fee FIRST
+      tx.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: treasuryPubkey,
+          lamports: feeLamports,
+        })
+      );
+
+      // 2) Thaw instruction
+      tx.add(ix);
 
       console.log("Sending transaction to wallet...");
 
