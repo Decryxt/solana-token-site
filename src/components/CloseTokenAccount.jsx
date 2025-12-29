@@ -161,7 +161,7 @@ export default function CloseTokenAccount({ onBack }) {
             The token account balance must be <b>0</b>.
           </p>
           <p className="text-sm italic text-[#14b89c]">
-            Estimated cost: ~0.02 SOL
+            Estimated cost: ~0.01 SOL
           </p>
         </div>
 
