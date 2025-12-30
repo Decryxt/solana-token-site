@@ -44,6 +44,12 @@ export default function TokenCreationForm() {
 
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
+  const [statusOpen, setStatusOpen] = useState(false);
+
+  const setStatusMessage = (msg) => {
+    setStatus(String(msg || ""));
+    setStatusOpen(true);
+  };
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -97,6 +103,7 @@ export default function TokenCreationForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("");
+    setStatusOpen(false);
 
     try {
       if (!publicKey) {
@@ -155,7 +162,7 @@ export default function TokenCreationForm() {
       const connection = new Connection(clusterApiUrl(network), "confirmed");
 
       setLoading(true);
-      setStatus("Building transaction...");
+      setStatusMessage("Building transaction...");
 
       // ---- Build mint transaction (user pays + signs) ----
       const mintKeypair = Keypair.generate();
@@ -219,7 +226,7 @@ export default function TokenCreationForm() {
         return;
       }
 
-      setStatus("Uploading metadata...");
+      setStatusMessage("Uploading metadata...");
 
       const { metadataUrl, imageUrl } = await uploadToIrys({
         name: formData.name,
@@ -273,11 +280,11 @@ export default function TokenCreationForm() {
       // Mint account must sign; user signs via wallet
       tx.partialSign(mintKeypair);
 
-      setStatus("Please approve the transaction in your wallet...");
+      setStatusMessage("Please approve the transaction in your wallet...");
 
       const sig = await sendTransaction(tx, connection);
 
-      setStatus("Confirming transaction on Solana...");
+      setStatusMessage("Confirming transaction on Solana...");
 
       const conf = await connection.confirmTransaction(
         {
@@ -290,13 +297,13 @@ export default function TokenCreationForm() {
 
       if (conf?.value?.err) {
         console.error("Transaction failed:", conf.value.err);
-        setStatus("Transaction failed. See console for details.");
+        setStatusMessage("Transaction failed. See console for details.");
         return;
       }
 
       // ---- Save to OriginFi backend (verify + store) ----
       // NOTE: We keep all metadata fields here so later we can wire Metaplex.
-      setStatus("Saving token to OriginFi...");
+      setStatusMessage("Saving token to OriginFi...");
 
       const body = {
         // On-chain proof fields
@@ -333,12 +340,12 @@ export default function TokenCreationForm() {
       if (!res.ok || data.ok === false) {
         console.error("Confirm mint error:", data);
         const message = data?.error || data?.details || "Failed to save token.";
-        setStatus(`Failed to save token: ${message}`);
+        setStatusMessage(`Failed to save token: ${message}`);
         alert(`Mint succeeded, but saving failed: ${message}`);
         return;
       }
 
-      setStatus(
+      setStatusMessage(
         [
           "Token minted and saved to OriginFi.",
           `Mint: ${mintPubkey.toBase58()}`,
@@ -350,7 +357,7 @@ export default function TokenCreationForm() {
       alert(`Token minted.\nMint: ${mintPubkey.toBase58()}\nTx: ${sig}`);
     } catch (err) {
       console.error("Mint flow error:", err);
-      setStatus("Unexpected error while creating token. Check console.");
+      setStatusMessage("Unexpected error while creating token. Check console.");
       alert("Unexpected error while creating token. Check console.");
     } finally {
       setLoading(false);
@@ -360,23 +367,23 @@ export default function TokenCreationForm() {
   const cardsData = [
     {
       title: "On-Chain Metadata",
-      text: "Your token’s name, symbol, image, and description are stored on-chain via Metaplex so wallets can display it properly.",
+      text: "Your token’s name, symbol, image, and description are stored via Metaplex so wallets and explorers can display it properly.",
       icon: <FaInfoCircle className="text-[#1CEAB9] text-4xl mb-4" />,
     },
     {
       title: "Metadata Immutability",
-      text: "You can permanently lock your token metadata to prevent future changes. This is a real on-chain trust signal.",
-      icon: <FaUsers className="text-[#1CEAB9] text-4xl mb-4" />,
+      text: "You can permanently lock your token metadata to prevent future edits. This is a real on-chain trust signal.",
+      icon: <FaMoneyBillWave className="text-[#1CEAB9] text-4xl mb-4" />,
     },
     {
       title: "Authority Actions",
-      text: "Mint & freeze authority changes happen in your Token Dashboard (revoke, freeze/thaw, delegate, and more).",
-      icon: <FaMoneyBillWave className="text-[#1CEAB9] text-4xl mb-4" />,
+      text: "Mint & freeze authority actions happen in your Token Dashboard (revoke, freeze/thaw, delegate, and more).",
+      icon: <FaUsers className="text-[#1CEAB9] text-4xl mb-4" />,
     },
   ];
 
   return (
-    <div className="min-h-screen flex items-start justify-center px-6 py-12 gap-10 bg-transparent">
+    <div className="min-h-screen flex items-start justify-center px-6 py-8 gap-10 bg-transparent">
       {/* Form container */}
       <div className="flex-1 max-w-3xl p-10 rounded-3xl border-[1.5px] border-[#1CEAB9] bg-[#0B0E11] shadow-xl text-white">
         <h2 className="text-3xl font-bold text-center mb-2">Token Creation</h2>
@@ -505,12 +512,9 @@ export default function TokenCreationForm() {
               />
 
               <div className="flex-1">
-                <p className="text-sm text-white font-medium">
-                  Make metadata immutable
-                </p>
+                <p className="text-sm text-white font-medium">Make metadata immutable</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Locks name, symbol, image, and description permanently. This is
-                  irreversible.
+                  Locks name, symbol, image, and description permanently. This is irreversible.
                 </p>
               </div>
             </div>
@@ -523,12 +527,6 @@ export default function TokenCreationForm() {
           >
             {loading ? "Creating Token..." : "Mint Token"}
           </button>
-
-          {status && (
-            <p className="text-sm text-gray-300 mt-3 text-center whitespace-pre-wrap">
-              {status}
-            </p>
-          )}
         </form>
       </div>
 
@@ -545,6 +543,44 @@ export default function TokenCreationForm() {
           </div>
         ))}
       </div>
+
+      {/* Status modal (replaces inline status text under Mint Token) */}
+      {statusOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <button
+            type="button"
+            aria-label="Close status"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setStatusOpen(false)}
+          />
+
+          <div className="relative w-full max-w-xl mx-6 rounded-3xl border border-[#1CEAB9]/60 bg-[#0B0E11] shadow-2xl text-white">
+            <div className="flex items-center justify-between px-6 pt-5">
+              <div className="text-lg font-semibold">Mint Status</div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setStatusOpen(false)}
+                className="h-9 w-9 rounded-full border border-[#1CEAB9]/40 bg-[#12161C] text-white hover:bg-[#144f44] hover:text-[#1CEAB9] transition"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-6 pb-6 pt-4">
+              <div className="text-sm text-gray-300 whitespace-pre-wrap">
+                {status || "..."}
+              </div>
+
+              {loading && (
+                <div className="mt-4 text-xs text-gray-400">
+                  You can close this window — the transaction will continue in your wallet.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
