@@ -39,8 +39,7 @@ export default function TokenCreationForm() {
     supply: "",
     description: "",
     imageURI: "",
-    sellerFeeBasisPoints: 0,
-    creators: "",
+    makeMetadataImmutable: false,
   });
 
   const [loading, setLoading] = useState(false);
@@ -255,12 +254,12 @@ export default function TokenCreationForm() {
                 name: formData.name, // keep <= 32 chars
                 symbol: formData.symbol, // keep <= 10 chars
                 uri: metadataUrl, // points to your JSON
-                sellerFeeBasisPoints: Number(formData.sellerFeeBasisPoints || 0),
+                sellerFeeBasisPoints: 0,
                 creators: null,
                 collection: null,
                 uses: null,
               },
-              isMutable: true,
+              isMutable: !formData.makeMetadataImmutable,
               collectionDetails: null,
             },
           }
@@ -317,11 +316,7 @@ export default function TokenCreationForm() {
         // metadata fields (we will use later for Metaplex)
         description: formData.description,
         imageURI: formData.imageURI,
-        sellerFeeBasisPoints: Number(formData.sellerFeeBasisPoints || 0),
-        creators: String(formData.creators || "")
-          .split(",")
-          .map((c) => c.trim())
-          .filter(Boolean),
+        metadataMutable: !formData.makeMetadataImmutable,
       };
 
       const res = await fetch(`${apiBase}/api/token/confirm-mint`, {
@@ -364,19 +359,19 @@ export default function TokenCreationForm() {
 
   const cardsData = [
     {
-      title: "Metadata Info",
-      text: "Add detailed metadata like description, logo URL, royalties, and creators to your token.",
+      title: "On-Chain Metadata",
+      text: "Your token’s name, symbol, image, and description are stored on-chain via Metaplex so wallets can display it properly.",
       icon: <FaInfoCircle className="text-[#1CEAB9] text-4xl mb-4" />,
     },
     {
-      title: "Royalties Explained",
-      text: "Royalties allow you to earn a percentage on secondary sales of your token. Set as basis points (100 = 1%).",
-      icon: <FaMoneyBillWave className="text-[#1CEAB9] text-4xl mb-4" />,
+      title: "Metadata Immutability",
+      text: "You can permanently lock your token metadata to prevent future changes. This is a real on-chain trust signal.",
+      icon: <FaUsers className="text-[#1CEAB9] text-4xl mb-4" />,
     },
     {
-      title: "Creators",
-      text: "List the wallet addresses of token creators who will share royalties and help verify authenticity.",
-      icon: <FaUsers className="text-[#1CEAB9] text-4xl mb-4" />,
+      title: "Authority Actions",
+      text: "Mint & freeze authority changes happen in your Token Dashboard (revoke, freeze/thaw, delegate, and more).",
+      icon: <FaMoneyBillWave className="text-[#1CEAB9] text-4xl mb-4" />,
     },
   ];
 
@@ -492,41 +487,32 @@ export default function TokenCreationForm() {
             </div>
           </div>
 
-          {/* Third row: sellerFeeBasisPoints and creators side by side */}
-          <div className="grid grid-cols-2 gap-6">
-            <div className="flex flex-col">
-              <label className="text-sm text-gray-300 mb-1">
-                Seller Fee Basis Points (Royalties)
-              </label>
-              <input
-                name="sellerFeeBasisPoints"
-                type="number"
-                min="0"
-                max="10000"
-                value={formData.sellerFeeBasisPoints}
-                onChange={handleChange}
-                className="px-4 py-2 rounded-lg bg-[#12161C] text-white border border-[#1CEAB9]/20 focus:outline-none focus:ring-2 focus:ring-[#1CEAB9]"
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Enter royalties as basis points (100 = 1%)
-              </p>
-            </div>
+          {/* Metadata immutability (replaces royalties/creators) */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm text-gray-300 mb-1">Metadata Settings</label>
 
-            <div className="flex flex-col">
-              <label className="text-sm text-gray-300 mb-1">
-                Creators (comma-separated wallet addresses)
-              </label>
+            <div className="flex items-start gap-3 bg-[#12161C] border border-[#1CEAB9]/20 rounded-lg p-4">
               <input
-                name="creators"
-                type="text"
-                placeholder="wallet1,wallet2,..."
-                value={formData.creators}
-                onChange={handleChange}
-                className="px-4 py-2 rounded-lg bg-[#12161C] text-white border border-[#1CEAB9]/20 focus:outline-none focus:ring-2 focus:ring-[#1CEAB9]"
+                type="checkbox"
+                checked={formData.makeMetadataImmutable}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    makeMetadataImmutable: e.target.checked,
+                  }))
+                }
+                className="mt-1"
               />
-              <p className="text-xs text-gray-400 mt-1">
-                Optional: list creator addresses for royalties and verification
-              </p>
+
+              <div className="flex-1">
+                <p className="text-sm text-white font-medium">
+                  Make metadata immutable
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Locks name, symbol, image, and description permanently. This is
+                  irreversible.
+                </p>
+              </div>
             </div>
           </div>
 
