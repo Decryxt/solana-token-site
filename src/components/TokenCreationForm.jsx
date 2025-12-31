@@ -228,7 +228,7 @@ export default function TokenCreationForm() {
 
       setStatusMessage("Uploading metadata...");
 
-      const { metadataUrl, imageUrl } = await uploadToIrys({
+      const { metadataUrl } = await uploadToIrys({
         name: formData.name,
         symbol: formData.symbol,
         description: formData.description,
@@ -554,7 +554,7 @@ export default function TokenCreationForm() {
             onClick={() => setStatusOpen(false)}
           />
 
-          <div className="relative w-full max-w-xl mx-6 rounded-3xl border border-[#1CEAB9]/60 bg-[#0B0E11] shadow-2xl text-white">
+          <div className="relative w-full max-w-3xl mx-6 rounded-3xl border border-[#1CEAB9]/60 bg-[#0B0E11] shadow-2xl text-white">
             <div className="flex items-center justify-between px-6 pt-5">
               <div className="text-lg font-semibold">Mint Status</div>
               <button
@@ -567,13 +567,13 @@ export default function TokenCreationForm() {
               </button>
             </div>
 
-            <div className="px-6 pb-6 pt-4">
+            <div className="px-6 pb-6 pt-4 space-y-4">
               <div className="text-sm text-gray-300 whitespace-pre-wrap">
                 {status || "..."}
               </div>
 
               {loading && (
-                <div className="mt-4 text-xs text-gray-400">
+                <div className="text-xs text-gray-400">
                   You can close this window — the transaction will continue in your wallet.
                 </div>
               )}
@@ -581,6 +581,7 @@ export default function TokenCreationForm() {
           </div>
         </div>
       )}
-    </div>
+     </div>
   );
 }
+
