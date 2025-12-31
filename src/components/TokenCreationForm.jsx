@@ -2,6 +2,14 @@ import React, { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Buffer } from "buffer";
 import {
+  FaTimes,
+  FaCheckCircle,
+  FaRegCircle,
+  FaSpinner,
+  FaCopy,
+  FaExternalLinkAlt,
+} from "react-icons/fa";
+import {
   Connection,
   Keypair,
   PublicKey,
@@ -525,7 +533,7 @@ export default function TokenCreationForm() {
             disabled={loading}
             className="w-full py-3 rounded-lg bg-gradient-to-r from-[#1CEAB9] via-[#17d1a6] to-[#0bc4a1] text-black font-semibold hover:brightness-110 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? "Creating Token..." : "Mint Token"}
+            {loading ? "Creating Token..." : "Mint Token  /  Estimated 0.05 SOL"}
           </button>
         </form>
       </div>
@@ -544,40 +552,292 @@ export default function TokenCreationForm() {
         ))}
       </div>
 
-      {/* Status modal (replaces inline status text under Mint Token) */}
+      {/* Status modal (professional mint console) */}
       {statusOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
           <button
             type="button"
             aria-label="Close status"
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-md"
             onClick={() => setStatusOpen(false)}
+            disabled={loading} // optional: prevents closing mid-mint
           />
 
-          <div className="relative w-full max-w-3xl mx-6 rounded-3xl border border-[#1CEAB9]/60 bg-[#0B0E11] shadow-2xl text-white">
-            <div className="flex items-center justify-between px-6 pt-5">
-              <div className="text-lg font-semibold">Mint Status</div>
+          <div className="relative w-full max-w-3xl mx-6 rounded-3xl border border-[#1CEAB9]/50 bg-[#0B0E11] shadow-2xl text-white overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-[#1CEAB9]/15 flex items-start justify-between">
+              <div>
+                <div className="text-xl font-semibold tracking-tight">Mint Console</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Live progress + final receipt for your token mint
+                </div>
+              </div>
+
               <button
                 type="button"
                 aria-label="Close"
                 onClick={() => setStatusOpen(false)}
-                className="h-9 w-9 rounded-full border border-[#1CEAB9]/40 bg-[#12161C] text-white hover:bg-[#144f44] hover:text-[#1CEAB9] transition"
+                disabled={loading} // optional: prevents closing mid-mint
+                className="h-10 w-10 grid place-items-center rounded-full border border-[#1CEAB9]/30 bg-[#12161C] text-white hover:bg-[#144f44] hover:text-[#1CEAB9] transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                ×
+                <FaTimes />
               </button>
             </div>
 
-            <div className="px-6 pb-6 pt-4 space-y-4">
-              <div className="text-sm text-gray-300 whitespace-pre-wrap">
-                {status || "..."}
-              </div>
+            {(() => {
+              // ---------- small helpers (no extra state needed) ----------
+              const s = String(status || "");
 
-              {loading && (
-                <div className="text-xs text-gray-400">
-                  You can close this window — the transaction will continue in your wallet.
+              const steps = [
+                { key: "build", label: "Building transaction", match: /Building transaction/i },
+                { key: "upload", label: "Uploading metadata", match: /Uploading metadata/i },
+                { key: "approve", label: "Awaiting wallet approval", match: /approve|wallet/i },
+                { key: "confirm", label: "Confirming on Solana", match: /Confirming transaction/i },
+                { key: "save", label: "Saving to OriginFi", match: /Saving token to OriginFi/i },
+                { key: "done", label: "Completed", match: /Token minted and saved|Token minted\./i },
+              ];
+
+              // current step index based on status text
+              let currentIdx = 0;
+              for (let i = 0; i < steps.length; i++) {
+                if (steps[i].match.test(s)) currentIdx = i;
+              }
+              if (!s) currentIdx = 0;
+
+              // Parse receipt fields from your final status lines (Mint:, ATA:, Tx:)
+              const mint = (s.match(/Mint:\s*([A-Za-z0-9]{32,})/i) || [])[1] || "";
+              const ata = (s.match(/ATA:\s*([A-Za-z0-9]{32,})/i) || [])[1] || "";
+              const tx = (s.match(/Tx:\s*([A-Za-z0-9]{32,})/i) || [])[1] || "";
+
+              const isDone = /Token minted and saved|Token minted\./i.test(s);
+              const network = "devnet"; // matches your current config
+
+              const copy = async (text) => {
+                try {
+                  await navigator.clipboard.writeText(text);
+                } catch (e) {
+                  console.error("Copy failed:", e);
+                }
+              };
+
+              const explorerTxUrl =
+                tx ? `https://explorer.solana.com/tx/${tx}?cluster=devnet` : "";
+              const explorerMintUrl =
+                mint ? `https://explorer.solana.com/address/${mint}?cluster=devnet` : "";
+
+              return (
+                <div className="px-6 py-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* LEFT: Step tracker */}
+                  <div className="rounded-2xl border border-[#1CEAB9]/15 bg-[#0D1116] p-5">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold">Progress</div>
+
+                      {loading ? (
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                          <FaSpinner className="animate-spin" />
+                          Working…
+                        </div>
+                      ) : isDone ? (
+                        <div className="flex items-center gap-2 text-xs text-[#1CEAB9]">
+                          <FaCheckCircle />
+                          Done
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-400">Idle</div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      {steps.map((st, i) => {
+                        const completed = i < currentIdx || (isDone && i <= currentIdx);
+                        const active = i === currentIdx && loading;
+
+                        return (
+                          <div key={st.key} className="flex items-center gap-3">
+                            <div className="w-5 h-5 grid place-items-center">
+                              {completed ? (
+                                <FaCheckCircle className="text-[#1CEAB9]" />
+                              ) : active ? (
+                                <FaSpinner className="animate-spin text-[#1CEAB9]" />
+                              ) : (
+                                <FaRegCircle className="text-gray-600" />
+                              )}
+                            </div>
+
+                            <div className="flex-1">
+                              <div
+                                className={[
+                                  "text-sm",
+                                  completed ? "text-white" : active ? "text-white" : "text-gray-400",
+                                ].join(" ")}
+                              >
+                                {st.label}
+                              </div>
+
+                              {active && (
+                                <div className="text-xs text-gray-500 mt-0.5 animate-pulse">
+                                  In progress…
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-5 pt-4 border-t border-[#1CEAB9]/10">
+                      <div className="text-xs text-gray-400 whitespace-pre-wrap">
+                        {status || "Waiting for your first action…"}
+                      </div>
+
+                      {loading && (
+                        <div className="mt-3 text-[11px] text-gray-500">
+                          You can leave this open while approving in your wallet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* RIGHT: Receipt / Details */}
+                  <div className="rounded-2xl border border-[#1CEAB9]/15 bg-[#0D1116] p-5">
+                    <div className="text-sm font-semibold">Receipt</div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Final details appear automatically when mint completes
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      {/* Network */}
+                      <div className="flex items-start justify-between gap-3 rounded-xl border border-[#1CEAB9]/10 bg-[#0B0E11] p-3">
+                        <div>
+                          <div className="text-[11px] text-gray-500">Network</div>
+                          <div className="text-sm text-white">{network}</div>
+                        </div>
+                      </div>
+
+                      {/* Mint */}
+                      <div className="flex items-start justify-between gap-3 rounded-xl border border-[#1CEAB9]/10 bg-[#0B0E11] p-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] text-gray-500">Mint Address</div>
+                          <div className="text-xs text-gray-200 break-all">
+                            {mint || "—"}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => mint && copy(mint)}
+                            disabled={!mint}
+                            className="h-9 px-3 rounded-lg border border-[#1CEAB9]/20 bg-[#12161C] text-xs hover:bg-[#144f44] hover:text-[#1CEAB9] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Copy mint"
+                          >
+                            <FaCopy className="inline mr-2" />
+                            Copy
+                          </button>
+
+                          <a
+                            href={explorerMintUrl || "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => {
+                              if (!explorerMintUrl) e.preventDefault();
+                            }}
+                            className={[
+                              "h-9 px-3 rounded-lg border border-[#1CEAB9]/20 bg-[#12161C] text-xs transition",
+                              explorerMintUrl
+                                ? "hover:bg-[#144f44] hover:text-[#1CEAB9]"
+                                : "opacity-40 cursor-not-allowed",
+                            ].join(" ")}
+                            title="View mint on Explorer"
+                          >
+                            <FaExternalLinkAlt className="inline mr-2" />
+                            Explorer
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* ATA */}
+                      <div className="flex items-start justify-between gap-3 rounded-xl border border-[#1CEAB9]/10 bg-[#0B0E11] p-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] text-gray-500">Token Account (ATA)</div>
+                          <div className="text-xs text-gray-200 break-all">
+                            {ata || "—"}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => ata && copy(ata)}
+                          disabled={!ata}
+                          className="h-9 px-3 rounded-lg border border-[#1CEAB9]/20 bg-[#12161C] text-xs hover:bg-[#144f44] hover:text-[#1CEAB9] transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                          title="Copy ATA"
+                        >
+                          <FaCopy className="inline mr-2" />
+                          Copy
+                        </button>
+                      </div>
+
+                      {/* Tx */}
+                      <div className="flex items-start justify-between gap-3 rounded-xl border border-[#1CEAB9]/10 bg-[#0B0E11] p-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] text-gray-500">Transaction</div>
+                          <div className="text-xs text-gray-200 break-all">
+                            {tx || "—"}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => tx && copy(tx)}
+                            disabled={!tx}
+                            className="h-9 px-3 rounded-lg border border-[#1CEAB9]/20 bg-[#12161C] text-xs hover:bg-[#144f44] hover:text-[#1CEAB9] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Copy tx"
+                          >
+                            <FaCopy className="inline mr-2" />
+                            Copy
+                          </button>
+
+                          <a
+                            href={explorerTxUrl || "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => {
+                              if (!explorerTxUrl) e.preventDefault();
+                            }}
+                            className={[
+                              "h-9 px-3 rounded-lg border border-[#1CEAB9]/20 bg-[#12161C] text-xs transition",
+                              explorerTxUrl
+                                ? "hover:bg-[#144f44] hover:text-[#1CEAB9]"
+                                : "opacity-40 cursor-not-allowed",
+                            ].join(" ")}
+                            title="View tx on Explorer"
+                          >
+                            <FaExternalLinkAlt className="inline mr-2" />
+                            Explorer
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 pt-4 border-t border-[#1CEAB9]/10 flex items-center justify-between">
+                      <div className="text-xs text-gray-500">
+                        {isDone ? "Mint complete." : loading ? "Minting in progress…" : "Ready."}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setStatusOpen(false)}
+                        className="h-10 px-4 rounded-xl border border-[#1CEAB9]/30 bg-[#12161C] text-sm hover:bg-[#144f44] hover:text-[#1CEAB9] transition"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
         </div>
       )}
