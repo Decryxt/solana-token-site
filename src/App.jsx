@@ -255,7 +255,10 @@ export default function App() {
                               hover:bg-white/5
                               cursor-pointer
                             "
-                            onClick={() => handleProfileClick(user)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleProfileClick(user);
+                            }}
                           >
                             {/* Avatar */}
                             <div
