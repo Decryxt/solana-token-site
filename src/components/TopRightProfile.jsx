@@ -1,5 +1,5 @@
 // components/TopRightProfile.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getAuth, saveAuth, clearAuth } from "../authStorage";
 import EditProfileModal from "./EditProfileModal";
 
@@ -22,7 +22,7 @@ function BadgeTooltip({ text }) {
 }
 
 const API_BASE = import.meta.env.VITE_API_URL;
-  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+if (!API_BASE) throw new Error("VITE_API_URL is not set");
 
 export default function TopRightProfile({ setPage }) {
   const [showModal, setShowModal] = useState(false);
@@ -34,25 +34,6 @@ export default function TopRightProfile({ setPage }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
-
-  const syncSubscriptionStatus = async (token) => {
-  try {
-    const res = await fetch(`${API_BASE}/api/subscription/sync`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    return data?.pro === true;
-  } catch {
-    return null;
-  }
-};
-
   // On mount: read stored auth + refresh /me if token exists
   useEffect(() => {
     const stored = getAuth();
@@ -82,17 +63,10 @@ export default function TopRightProfile({ setPage }) {
           console.error("Failed to fetch /me on load:", data);
           return;
         }
-
-        const isPro = await syncSubscriptionStatus(stored.token);
-
         const updatedAuth = {
           token: stored.token,
-          user: {
-            ...data.user,
-            isPro: !!isPro,
-          },
+          user: data.user,
         };
-
         saveAuth(updatedAuth.token, updatedAuth.user);
         setAuth(updatedAuth);
         console.log("OriginFi auth state (after /me):", updatedAuth);
@@ -104,28 +78,6 @@ export default function TopRightProfile({ setPage }) {
     fetchMe();
   }, []);
 
-  // Re-sync Pro status anytime token changes (login/logout)
-  useEffect(() => {
-    const run = async () => {
-      if (!auth?.token) return;
-
-      const pro = await syncSubscriptionStatus(auth.token);
-      const updatedAuth = {
-        token: auth.token,
-        user: {
-          ...(auth.user || {}),
-          isPro: !!pro,
-        },
-      };
-
-      saveAuth(updatedAuth.token, updatedAuth.user);
-      setAuth(updatedAuth);
-    };
-
-    run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth?.token]);
-
   useEffect(() => {
     if (showModal) {
       const t = setTimeout(() => setModalAnimateIn(true), 10);
@@ -136,17 +88,31 @@ export default function TopRightProfile({ setPage }) {
   }, [showModal]);
 
   const isLoggedIn = !!auth.token;
-  const isPro = auth.user?.isPro === true;
   const userEmail = auth.user?.email;
 
   const userName =
     auth.user?.username ||
     auth.user?.name ||
     (userEmail ? userEmail.split("@")[0] : "OriginFi User");
-
   const avatarInitial = userName.charAt(0).toUpperCase();
-  const avatarUrl = auth.user?.profileImageUrl || null;
-  const bannerUrl = auth.user?.bannerImageUrl || null;
+  const avatarUrlRaw = auth.user?.profileImageUrl || null;
+  const bannerUrlRaw = auth.user?.bannerImageUrl || null;
+
+  // Cache-bust avatar/banner so updates show instantly (browser caches these URLs aggressively)
+  const bustKey = useMemo(() => {
+    const u = auth.user?.updatedAt;
+    return u ? String(u) : `${avatarUrlRaw || ""}|${bannerUrlRaw || ""}|${Date.now()}`;
+  }, [auth.user?.updatedAt, avatarUrlRaw, bannerUrlRaw]);
+
+  const avatarUrl = useMemo(() => {
+    if (!avatarUrlRaw) return null;
+    return `${avatarUrlRaw}${avatarUrlRaw.includes("?") ? "&" : "?"}v=${encodeURIComponent(bustKey)}`;
+  }, [avatarUrlRaw, bustKey]);
+
+  const bannerUrl = useMemo(() => {
+    if (!bannerUrlRaw) return null;
+    return `${bannerUrlRaw}${bannerUrlRaw.includes("?") ? "&" : "?"}v=${encodeURIComponent(bustKey)}`;
+  }, [bannerUrlRaw, bustKey]);
 
   // Badges from backend
   const badges = auth.user?.badges || [];
@@ -216,44 +182,6 @@ export default function TopRightProfile({ setPage }) {
       setErrorMsg(err.message || "Authentication failed");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleUpgrade = async () => {
-    if (!auth?.token) {
-      setShowModal(true);
-      setFormMode("login");
-      return;
-    }
-
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/subscription/create-checkout-session`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.token}`,
-          },
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        console.error("Upgrade error:", data);
-        setErrorMsg(data.error || "Unable to start subscription checkout.");
-        return;
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setErrorMsg("No checkout URL returned from server.");
-      }
-    } catch (err) {
-      console.error("Upgrade error:", err);
-      setErrorMsg("Something went wrong starting checkout.");
     }
   };
 
@@ -410,22 +338,6 @@ export default function TopRightProfile({ setPage }) {
 
                 {/* Divider */}
                 <div className="h-px bg-white/20" />
-
-                {/* Quick info */}
-                <div className="space-y-2">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-gray-400">Status</span>
-                    <span className="text-right font-semibold">
-                      {isPro ? (
-                        <span className="text-[#1CEAB9]">Pro</span>
-                      ) : (
-                        <span className="text-gray-400">Free</span>
-                      )}
-                    </span>
-
-                  </div>
-                </div>
-
                 {/* Actions */}
                 <div className="pt-2 flex flex-col gap-2">
                   <button
@@ -434,19 +346,6 @@ export default function TopRightProfile({ setPage }) {
                   >
                     Edit Profile
                   </button>
-                  {!isPro ? (
-                    <button
-                      onClick={handleUpgrade}
-                      className="w-full py-1.5 rounded-lg bg-transparent border border-[#1CEAB9] text-[11px] font-semibold text-[#1CEAB9] hover:bg-[#1CEAB9]/10 transition"
-                    >
-                      Upgrade to Pro
-                    </button>
-                  ) : (
-                    <div className="w-full py-1.5 rounded-lg text-center text-[11px] font-semibold text-[#1CEAB9] border border-[#1CEAB9]/40">
-                      Pro Active ✓
-                    </div>
-                  )}
-
                   <button
                     onClick={handleSignOut}
                     className="w-full py-1.5 rounded-lg bg-transparent border border-red-500/60 text-[11px] font-semibold text-red-400 hover:bg-red-500/10 transition"
