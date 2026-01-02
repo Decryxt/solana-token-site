@@ -106,12 +106,31 @@ export default function App() {
     }
   };
 
-  const handleProfileClick = (user) => {
-    console.log("Clicked user:", user);
-    setSelectedProfile(user);
-    setPage("profile");
-    setSearchResults([]);
-    setSearchTerm("");
+  const handleProfileClick = async (user) => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/protected/public-profile/${user.id}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to load profile");
+      }
+
+      const data = await res.json();
+
+      setSelectedProfile(data.user);
+      setPage("profile");
+      setSearchResults([]);
+      setSearchTerm("");
+    } catch (err) {
+      console.error("Load profile error:", err);
+    }
   };
 
   const handleBackFromProfile = () => {
