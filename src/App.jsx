@@ -244,6 +244,9 @@ export default function App() {
                             text-sm
                             max-h-64
                             overflow-y-auto
+                            z-[9999]
+                            relative
+                            pointer-events-auto
                           "
                         >
                         {searchResults.map((user) => (
