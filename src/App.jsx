@@ -227,41 +227,56 @@ export default function App() {
                             overflow-y-auto
                           "
                         >
-                          {searchResults.map((user) => (
+                        {searchResults.map((user) => (
+                          <div
+                            key={user.id}
+                            className="
+                              flex items-center gap-3
+                              px-4 py-2.5
+                              hover:bg-white/5
+                              cursor-pointer
+                            "
+                            onClick={() => handleProfileClick(user)}
+                          >
+                            {/* Avatar */}
                             <div
-                              key={user.id}
                               className="
-                                flex items-center gap-3
-                                px-4 py-2.5
-                                hover:bg-white/5
-                                cursor-pointer
+                                w-9 h-9 rounded-full
+                                border border-[#1CEAB9]/40
+                                bg-[#12161C]
+                                flex items-center justify-center
+                                overflow-hidden
+                                text-xs font-semibold
+                                shrink-0
                               "
-                              onClick={() => handleProfileClick(user)}
                             >
-                              {/* avatar circle */}
-                              <div
-                                className="
-                                  w-8 h-8 rounded-full
-                                  bg-gradient-to-br from-[#1CEAB9] to-[#0B7285]
-                                  flex items-center justify-center
-                                  text-xs font-semibold
-                                "
-                              >
-                                {(user.username || user.email || "?")
-                                  .charAt(0)
-                                  .toUpperCase()}
-                              </div>
-
-                              <div className="flex flex-col">
-                                <span className="text-[13px] font-medium">
-                                  {user.username || "No username"}
+                              {user.profileImageUrl ? (
+                                <img
+                                  src={user.profileImageUrl}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-[#1CEAB9]">
+                                  {(user.username || "?").charAt(0).toUpperCase()}
                                 </span>
-                                <span className="text-[11px] text-slate-400">
-                                  {user.email}
-                                </span>
-                              </div>
+                              )}
                             </div>
-                          ))}
+
+                            {/* Name + creator level */}
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[13px] font-medium truncate">
+                                {user.username || "No username"}
+                              </span>
+                              <span className="text-[11px] text-slate-400">
+                                Creator Level{" "}
+                                <span className="text-[#1CEAB9] font-semibold">
+                                  {user.creatorLevel ?? 0}
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                         </div>
                       )}
                     </div>
