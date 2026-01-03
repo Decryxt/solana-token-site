@@ -100,9 +100,8 @@ export default function TopRightProfile({ setPage }) {
 
   // Cache-bust avatar/banner so updates show instantly (browser caches these URLs aggressively)
   const bustKey = useMemo(() => {
-    const u = auth.user?.updatedAt;
-    return u ? String(u) : `${avatarUrlRaw || ""}|${bannerUrlRaw || ""}|${Date.now()}`;
-  }, [auth.user?.updatedAt, avatarUrlRaw, bannerUrlRaw]);
+    return String(auth.user?.updatedAt || Date.now());
+  }, [auth.user?.updatedAt]);
 
   const avatarUrl = useMemo(() => {
     if (!avatarUrlRaw) return null;
