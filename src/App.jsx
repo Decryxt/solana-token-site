@@ -261,7 +261,7 @@ export default function App() {
                               cursor-pointer
                             "
                             onClick={() => handleProfileClick(user)}
-                            onMouseDown={(e) => e.preventDefault()} // keeps input from stealing focus weirdly
+                          
                           >
                             {/* Avatar */}
                             <div
@@ -288,20 +288,20 @@ export default function App() {
                               )}
                             </div>
 
-                                {/* Name + creator level */}
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-[13px] font-medium truncate">
-                                    {user.username || "No username"}
-                                  </span>
-                                  <span className="text-[11px] text-slate-400">
-                                    Creator Level{" "}
-                                    <span className="text-[#1CEAB9] font-semibold">
-                                      {user.creatorLevel?.label || "Newcomer"}
-                                    </span>
-                                  </span>
-                                </div>
-                              </button>
-                            ))}
+                            {/* Name + creator level */}
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[13px] font-medium truncate">
+                                {user.username || "No username"}
+                              </span>
+                              <span className="text-[11px] text-slate-400">
+                                Creator Level{" "}
+                                <span className="text-[#1CEAB9] font-semibold">
+                                  {user.creatorLevel?.label || "Newcomer"}
+                                </span>
+                              </span>
+                            </div>
+                          </button>
+                        ))}
                         </div>
                       )}
                     </div>
