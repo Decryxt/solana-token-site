@@ -250,18 +250,18 @@ export default function App() {
                           "
                         >
                         {searchResults.map((user) => (
-                          <div
+                          <button
                             key={user.id}
+                            type="button"
                             className="
+                              w-full text-left
                               flex items-center gap-3
                               px-4 py-2.5
                               hover:bg-white/5
                               cursor-pointer
                             "
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              handleProfileClick(user);
-                            }}
+                            onClick={() => handleProfileClick(user)}
+                            onMouseDown={(e) => e.preventDefault()} // keeps input from stealing focus weirdly
                           >
                             {/* Avatar */}
                             <div
@@ -288,20 +288,20 @@ export default function App() {
                               )}
                             </div>
 
-                            {/* Name + creator level */}
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-[13px] font-medium truncate">
-                                {user.username || "No username"}
-                              </span>
-                              <span className="text-[11px] text-slate-400">
-                                Creator Level{" "}
-                                <span className="text-[#1CEAB9] font-semibold">
-                                  {user.creatorLevel ?? 0}
-                                </span>
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                                {/* Name + creator level */}
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-[13px] font-medium truncate">
+                                    {user.username || "No username"}
+                                  </span>
+                                  <span className="text-[11px] text-slate-400">
+                                    Creator Level{" "}
+                                    <span className="text-[#1CEAB9] font-semibold">
+                                      {user.creatorLevel?.label || "Newcomer"}
+                                    </span>
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
                         </div>
                       )}
                     </div>
