@@ -22,7 +22,7 @@ export default function ThawTokenAccount({ onBack }) {
   const [processing, setProcessing] = useState(false);
 
   const { publicKey, sendTransaction } = useWallet();
-  const connection = new Connection(clusterApiUrl("devnet"));
+  const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
 
   useEffect(() => {
     async function fetchTokens() {

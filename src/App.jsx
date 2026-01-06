@@ -36,7 +36,7 @@ import GlassCards from "./components/GlassCards";
 
 export default function App() {
   const [page, setPage] = useState("home");
-  const [network, setNetwork] = useState("devnet");
+  const [network, setNetwork] = useState("mainnet-beta");
   const [theme, setTheme] = useState("dark");
 
   // ✅ Backend API base (works locally + in production)

@@ -6,5 +6,5 @@ import { Connection, clusterApiUrl } from "@solana/web3.js";
  * Keep devnet for now; later we’ll flip to env-based mainnet-beta safely.
  */
 export function getConnection() {
-  return new Connection(clusterApiUrl("devnet"), "confirmed");
+  return new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
 }

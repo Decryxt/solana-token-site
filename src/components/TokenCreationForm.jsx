@@ -166,8 +166,8 @@ export default function TokenCreationForm() {
       }
 
       // For now keep devnet; when you flip to mainnet, change to "mainnet-beta"
-      const network = "devnet";
-      const connection = new Connection(clusterApiUrl(network), "confirmed");
+      const network = "mainnet-beta";
+      const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
 
       setLoading(true);
       setStatusMessage("Building transaction...");
@@ -611,7 +611,7 @@ export default function TokenCreationForm() {
               const tx = (s.match(/Tx:\s*([A-Za-z0-9]{32,})/i) || [])[1] || "";
 
               const isDone = /Token minted and saved|Token minted\./i.test(s);
-              const network = "devnet"; // matches your current config
+              const network = "mainnet-beta"; // matches your current config
 
               const copy = async (text) => {
                 try {
@@ -622,9 +622,9 @@ export default function TokenCreationForm() {
               };
 
               const explorerTxUrl =
-                tx ? `https://explorer.solana.com/tx/${tx}?cluster=devnet` : "";
+                tx ? `https://explorer.solana.com/tx/${tx}` : "";
               const explorerMintUrl =
-                mint ? `https://explorer.solana.com/address/${mint}?cluster=devnet` : "";
+                mint ? `https://explorer.solana.com/address/${mint}` : "";
 
               return (
                 <div className="px-6 py-6 grid grid-cols-1 md:grid-cols-2 gap-6">

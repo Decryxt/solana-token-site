@@ -13,7 +13,10 @@ import {
 
 export default function SetAuthority({ onBack }) {
   const { publicKey, sendTransaction } = useWallet();
-  const connection = useMemo(() => new Connection(clusterApiUrl("devnet")), []);
+  const connection = useMemo(
+    () => new Connection(clusterApiUrl("mainnet-beta"), "confirmed"),
+    []
+  );
 
   const [searchTerm, setSearchTerm] = useState("");
   const [tokenAccounts, setTokenAccounts] = useState([]);
