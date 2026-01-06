@@ -167,7 +167,8 @@ export default function TokenCreationForm() {
 
       // For now keep devnet; when you flip to mainnet, change to "mainnet-beta"
       const network = "mainnet-beta";
-      const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
+      const rpc = import.meta.env.VITE_SOLANA_RPC;
+      const connection = new Connection(rpc, "confirmed");
 
       setLoading(true);
       setStatusMessage("Building transaction...");

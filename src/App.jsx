@@ -47,7 +47,7 @@ export default function App() {
   // (Your Settings page can change this via setNetwork)
   const solanaEndpoint =
     network === "mainnet" || network === "mainnet-beta"
-      ? "https://api.mainnet-beta.solana.com"
+      ? import.meta.env.VITE_SOLANA_RPC
       : network === "testnet"
       ? "https://api.testnet.solana.com"
       : "https://api.devnet.solana.com";
