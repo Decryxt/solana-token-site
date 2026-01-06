@@ -1,7 +1,30 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export default function PublicProfileView({ user, onBack }) {
   if (!user) return null;
+
+    const [isFollowing, setIsFollowing] = useState(false);
+  const [localFollowers, setLocalFollowers] = useState(
+    typeof user.followersCount === "number" ? user.followersCount : 0
+  );
+
+  const token = localStorage.getItem("originfi_jwt");
+  const API = "https://api.originfi.net";
+
+    useEffect(() => {
+    if (!user?.id || !token) return;
+
+    fetch(`${API}/api/protected/follow/status/${user.id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        setIsFollowing(!!data.isFollowing);
+      })
+      .catch(() => {});
+  }, [user?.id]);
 
   const {
     username,
@@ -26,6 +49,38 @@ export default function PublicProfileView({ user, onBack }) {
   const createdAtString = createdAt
     ? new Date(createdAt).toLocaleDateString()
     : null;
+
+      async function toggleFollow() {
+    if (!token) {
+      alert("Please log in to follow creators.");
+      return;
+    }
+
+    const method = isFollowing ? "DELETE" : "POST";
+
+    const res = await fetch(
+      `${API}/api/protected/follow/${user.id}`,
+      {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data?.message || "Follow action failed.");
+      return;
+    }
+
+    setIsFollowing(data.isFollowing);
+
+    // update followers count instantly
+    if (typeof data.followersCount === "number") {
+      setLocalFollowers(data.followersCount);
+    }
+  }
 
   // Decide which badges to show: featured ones if set, else all
   const displayedBadges =
@@ -124,7 +179,7 @@ export default function PublicProfileView({ user, onBack }) {
   const hasAnySocial =
     twitterUrl || discordUrl || websiteUrl || telegramUrl;
 
-  const safeFollowers = typeof followersCount === "number" ? followersCount : 0;
+  const safeFollowers = localFollowers;
   const safeFollowing = typeof followingCount === "number" ? followingCount : 0;
 
   return (
@@ -159,20 +214,21 @@ export default function PublicProfileView({ user, onBack }) {
           <div className="flex justify-end w-[90px]">
             <button
               type="button"
-              className="
+              onClick={toggleFollow}
+              className={`
                 px-3 py-1
                 rounded-full
-                border border-[#1CEAB9]/60
+                border
                 text-[11px]
-                text-[#1CEAB9]
-                hover:bg-[#1CEAB9]/10
                 transition
-              "
-              onClick={() => {
-                console.log("Follow clicked (not yet wired).");
-              }}
+                ${
+                  isFollowing
+                    ? "border-gray-500 text-gray-300 hover:bg-white/5"
+                    : "border-[#1CEAB9]/60 text-[#1CEAB9] hover:bg-[#1CEAB9]/10"
+                }
+              `}
             >
-              Follow
+              {isFollowing ? "Unfollow" : "Follow"}
             </button>
           </div>
         </div>
