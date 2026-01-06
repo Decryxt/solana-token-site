@@ -23,6 +23,7 @@ import BadgeShowcase from "./components/BadgeShowcase";
 import About from "./components/About";
 import Community from "./components/Community";
 import TermsPrivacy from "./components/TermsPrivacy";
+import FAQ from "./components/FAQ";
 import Settings from "./components/Settings";
 import Roadmap from "./components/Roadmap";
 import WalletConnect from "./components/WalletConnect";
@@ -359,6 +360,7 @@ export default function App() {
               {page === "badges" && <BadgeShowcase />}
               {page === "about" && <About />}
               {page === "community" && <Community />}
+              {page === "faq" && <FAQ />}
               {page === "legal" && <TermsPrivacy />}
               {page === "roadmap" && <Roadmap />}
               {page === "forgot" && <ForgotPassword setPage={setPage} />}
