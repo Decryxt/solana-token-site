@@ -138,19 +138,7 @@ export default function Docs() {
                         </div>
 
                         {/* Optional small preview (locked height) */}
-                        <div className="rounded-xl border border-white/10 bg-black/10">
-                        <div className="h-[260px] overflow-hidden">
-                            <iframe
-                            title="OriginFi Whitepaper Preview"
-                            src={whitepaperUrl}
-                            className="w-full h-full"
-                            style={{ border: "none" }}
-                            />
-                        </div>
-                        <div className="px-4 py-2 text-xs text-gray-400 text-center border-t border-white/10">
-                            Preview only — open the full document to read
-                        </div>
-                        </div>
+                    
                     </div>
                     )}
                     <div className="text-gray-300 text-sm leading-relaxed">
