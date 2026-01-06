@@ -104,19 +104,55 @@ export default function Docs() {
 
                 {/* Content body */}
                 <div className="p-4">
-                  {active === "whitepaper" ? (
-                    <div className="rounded-xl border border-white/10 bg-black/10">
-                        {/* FIXED HEIGHT + INTERNAL SCROLL */}
-                        <div className="h-[65vh] max-h-[700px] overflow-y-auto">
+                  {active === "whitepaper" && (
+                    <div className="space-y-4">
+                        {/* Summary */}
+                        <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <h2 className="text-white font-semibold text-lg">
+                            OriginFi Whitepaper
+                        </h2>
+                        <p className="mt-2 text-sm text-gray-300">
+                            The official OriginFi whitepaper outlines the platform’s vision,
+                            architecture, and guiding principles. This document is intended
+                            for informational purposes only.
+                        </p>
+
+                        <div className="mt-4 flex flex-wrap gap-3">
+                            <a
+                            href={whitepaperUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 rounded-lg border border-white/10 text-gray-200 hover:bg-white/5 transition text-sm"
+                            >
+                            Read whitepaper
+                            </a>
+
+                            <a
+                            href={whitepaperUrl}
+                            download
+                            className="px-4 py-2 rounded-lg border border-[#1CEAB9]/40 text-[#1CEAB9] hover:bg-[#1CEAB9]/10 transition text-sm"
+                            >
+                            Download PDF
+                            </a>
+                        </div>
+                        </div>
+
+                        {/* Optional small preview (locked height) */}
+                        <div className="rounded-xl border border-white/10 bg-black/10">
+                        <div className="h-[260px] overflow-hidden">
                             <iframe
-                            title="OriginFi Whitepaper"
+                            title="OriginFi Whitepaper Preview"
                             src={whitepaperUrl}
                             className="w-full h-full"
                             style={{ border: "none" }}
                             />
                         </div>
+                        <div className="px-4 py-2 text-xs text-gray-400 text-center border-t border-white/10">
+                            Preview only — open the full document to read
                         </div>
-                  ) : (
+                        </div>
+                    </div>
+                    )}
                     <div className="text-gray-300 text-sm leading-relaxed">
                       <p className="mb-3">
                         This section is reserved for docs content.
@@ -125,7 +161,6 @@ export default function Docs() {
                         You can add guides here later (Getting Started, Fees, Security, etc.).
                       </p>
                     </div>
-                  )}
                 </div>
               </main>
             </div>
