@@ -25,6 +25,7 @@ import Community from "./components/Community";
 import TermsPrivacy from "./components/TermsPrivacy";
 import FAQ from "./components/FAQ";
 import Docs from "./components/Docs";
+import Support from "./components/Support";
 import Settings from "./components/Settings";
 import Roadmap from "./components/Roadmap";
 import WalletConnect from "./components/WalletConnect";
@@ -363,6 +364,7 @@ export default function App() {
               {page === "community" && <Community />}
               {page === "faq" && <FAQ />}
               {page === "docs" && <Docs />}
+              {page === "support" && <Support />}
               {page === "legal" && <TermsPrivacy />}
               {page === "roadmap" && <Roadmap />}
               {page === "forgot" && <ForgotPassword setPage={setPage} />}
