@@ -105,16 +105,17 @@ export default function Docs() {
                 {/* Content body */}
                 <div className="p-4">
                   {active === "whitepaper" ? (
-                    <div className="rounded-xl overflow-hidden border border-white/10">
-                      {/* Scrollable viewer area */}
-                      <div className="h-[70vh] w-full">
-                        <iframe
-                          title="OriginFi Whitepaper"
-                          src={whitepaperUrl}
-                          className="w-full h-full"
-                        />
-                      </div>
-                    </div>
+                    <div className="rounded-xl border border-white/10 bg-black/10">
+                        {/* FIXED HEIGHT + INTERNAL SCROLL */}
+                        <div className="h-[65vh] max-h-[700px] overflow-y-auto">
+                            <iframe
+                            title="OriginFi Whitepaper"
+                            src={whitepaperUrl}
+                            className="w-full h-full"
+                            style={{ border: "none" }}
+                            />
+                        </div>
+                        </div>
                   ) : (
                     <div className="text-gray-300 text-sm leading-relaxed">
                       <p className="mb-3">
