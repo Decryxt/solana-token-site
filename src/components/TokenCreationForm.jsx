@@ -101,22 +101,10 @@ export default function TokenCreationForm() {
     if (!wallet) throw new Error("Wallet not connected");
     if (!rpcUrl) throw new Error("Missing RPC URL");
 
-    const irys = await WebUploader(WebSolana, { url: "https://node1.irys.xyz" })
+    const irys = await WebUploader(WebSolana)
       .withProvider(wallet)
       .withRpc(rpcUrl)
       .mainnet();
-
-      // Force bundler host (your DNS can't resolve uploader.irys.xyz)
-      const FORCED_BUNDLER = "https://node1.irys.xyz/";
-      if (irys?.api) {
-        // Some versions store it here
-        irys.api.baseURL = FORCED_BUNDLER;
-
-        // Some versions wrap axios under api.axios
-        if (irys.api.axios?.defaults) {
-          irys.api.axios.defaults.baseURL = FORCED_BUNDLER;
-        }
-      }
 
     // Upload image
     const mime = imageFile?.type || "image/png";
