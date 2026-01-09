@@ -5,11 +5,6 @@ import {
   WalletProvider,
 } from "@solana/wallet-adapter-react";
 
-import {
-  PhantomWalletAdapter,
-  SolflareWalletAdapter,
-} from "@solana/wallet-adapter-wallets";
-
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 
 import Background from "./components/Background";
@@ -61,10 +56,7 @@ export default function App() {
   // 👤 Selected profile for profile page
   const [selectedProfile, setSelectedProfile] = useState(null);
 
-  const wallets = useMemo(
-    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
-    []
-  );
+  const wallets = useMemo(() => [], []);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === "dark" ? "alt" : "dark"));
