@@ -104,6 +104,7 @@ export default function TokenCreationForm() {
     const irys = await WebUploader(WebSolana)
       .withProvider(wallet)
       .withRpc(rpcUrl)
+      .withUrl("https://node1.irys.xyz")  
       .mainnet();
 
     // Upload image
