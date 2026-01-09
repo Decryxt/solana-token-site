@@ -111,6 +111,9 @@ export default function TokenCreationForm() {
       const imgPriceLamports = await irys.getPrice(imageFile.size);
       console.log("Irys image price (SOL):", Number(imgPriceLamports) / 1e9);
 
+      console.log("WalletAdapter publicKey:", wallet?.adapter?.publicKey?.toBase58?.());
+      console.log("useWallet publicKey:", wallet?.publicKey?.toBase58?.());
+
     // Upload image
     const mime = imageFile?.type || "image/png";
     const imgReceipt = await irys.uploadFile(imageFile, {
