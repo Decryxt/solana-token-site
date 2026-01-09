@@ -126,7 +126,7 @@ export default function TokenCreationForm() {
       },
     };
 
-    const metaReceipt = await irys.uploadData(JSON.stringify(metadata), {
+    const metaReceipt = await irys.upload(JSON.stringify(metadata), {
       tags: [{ name: "Content-Type", value: "application/json" }],
     });
 
