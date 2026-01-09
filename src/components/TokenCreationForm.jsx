@@ -106,6 +106,8 @@ export default function TokenCreationForm() {
       .withRpc(rpcUrl)
       .mainnet();
 
+      console.log("Irys image size (bytes):", imageFile.size);
+
     // Upload image
     const mime = imageFile?.type || "image/png";
     const imgReceipt = await irys.uploadFile(imageFile, {
