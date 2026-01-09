@@ -106,6 +106,18 @@ export default function TokenCreationForm() {
       .withRpc(rpcUrl)
       .mainnet();
 
+      // Force bundler host (your DNS can't resolve uploader.irys.xyz)
+      const FORCED_BUNDLER = "https://node1.irys.xyz/";
+      if (irys?.api) {
+        // Some versions store it here
+        irys.api.baseURL = FORCED_BUNDLER;
+
+        // Some versions wrap axios under api.axios
+        if (irys.api.axios?.defaults) {
+          irys.api.axios.defaults.baseURL = FORCED_BUNDLER;
+        }
+      }
+
     // Upload image
     const mime = imageFile?.type || "image/png";
     const imgReceipt = await irys.uploadFile(imageFile, {
