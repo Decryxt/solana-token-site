@@ -114,6 +114,8 @@ export default function TokenCreationForm() {
       console.log("Selected wallet name:", wallet?.wallet?.adapter?.name);
       console.log("Adapter publicKey:", wallet?.wallet?.adapter?.publicKey?.toBase58?.());
 
+      console.log("Irys node balance (atomic):", (await irys.getBalance()).toString());
+
     // Upload image
     const mime = imageFile?.type || "image/png";
     const imgReceipt = await irys.uploadFile(imageFile, {
