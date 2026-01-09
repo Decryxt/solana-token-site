@@ -269,7 +269,7 @@ export default function TokenCreationForm() {
         symbol: formData.symbol,
         description: formData.description,
         imageFile: formData.imageFile,
-        wallet: wallet?.adapter,
+        wallet: wallet,
         rpcUrl: import.meta.env.VITE_SOLANA_RPC,
       });
 
