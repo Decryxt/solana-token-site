@@ -108,6 +108,9 @@ export default function TokenCreationForm() {
 
       console.log("Irys image size (bytes):", imageFile.size);
 
+      const imgPriceLamports = await irys.getPrice(imageFile.size);
+      console.log("Irys image price (SOL):", Number(imgPriceLamports) / 1e9);
+
     // Upload image
     const mime = imageFile?.type || "image/png";
     const imgReceipt = await irys.uploadFile(imageFile, {
