@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Buffer } from "buffer";
+import { WebUploader } from "@irys/web-upload";
+import { WebSolana } from "@irys/web-upload-solana";
 import {
   FaTimes,
   FaCheckCircle,
@@ -88,24 +90,49 @@ export default function TokenCreationForm() {
     return supply * factor;
   };
 
-  async function uploadToIrys({ name, symbol, description, imageFile }) {
-    const fd = new FormData();
-    fd.append("name", name);
-    fd.append("symbol", symbol);
-    fd.append("description", description || "Created on OriginFi.");
-    fd.append("image", imageFile);
+  async function uploadToIrys({
+    name,
+    symbol,
+    description,
+    imageFile,
+    wallet,
+    rpcUrl,
+  }) {
+    if (!wallet) throw new Error("Wallet not connected");
+    if (!rpcUrl) throw new Error("Missing RPC URL");
 
-    const res = await fetch("https://api.originfi.net/api/metadata/upload", {
-      method: "POST",
-      body: fd,
+    const irys = await WebUploader(WebSolana)
+      .withProvider(wallet)
+      .withRpc(rpcUrl)
+      .mainnet();
+
+    // Upload image
+    const mime = imageFile?.type || "image/png";
+    const imgReceipt = await irys.uploadFile(imageFile, {
+      tags: [{ name: "Content-Type", value: mime }],
     });
 
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      throw new Error(data?.error || "Metadata upload failed");
-    }
+    const imageUrl = `https://gateway.irys.xyz/${imgReceipt.id}`;
 
-    return data; // { imageUrl, metadataUrl }
+    // Upload metadata JSON
+    const metadata = {
+      name,
+      symbol,
+      description: description || "Created on OriginFi.",
+      image: imageUrl,
+      properties: {
+        files: [{ uri: imageUrl, type: mime }],
+        category: "image",
+      },
+    };
+
+    const metaReceipt = await irys.uploadData(JSON.stringify(metadata), {
+      tags: [{ name: "Content-Type", value: "application/json" }],
+    });
+
+    const metadataUrl = `https://gateway.irys.xyz/${metaReceipt.id}`;
+
+    return { imageUrl, metadataUrl };
   }
 
   const handleSubmit = async (e) => {
@@ -242,6 +269,8 @@ export default function TokenCreationForm() {
         symbol: formData.symbol,
         description: formData.description,
         imageFile: formData.imageFile,
+        wallet: wallet?.adapter,
+        rpcUrl: import.meta.env.VITE_SOLANA_RPC,
       });
 
       // Derive Metadata PDA
@@ -331,7 +360,7 @@ export default function TokenCreationForm() {
 
         // metadata fields (we will use later for Metaplex)
         description: formData.description,
-        imageURI: formData.imageURI,
+        imageURI: metadataUrl,
         metadataMutable: !formData.makeMetadataImmutable,
       };
 
