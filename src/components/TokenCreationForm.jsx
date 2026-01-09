@@ -101,10 +101,9 @@ export default function TokenCreationForm() {
     if (!wallet) throw new Error("Wallet not connected");
     if (!rpcUrl) throw new Error("Missing RPC URL");
 
-    const irys = await WebUploader(WebSolana)
+    const irys = await WebUploader(WebSolana, { url: "https://node1.irys.xyz" })
       .withProvider(wallet)
       .withRpc(rpcUrl)
-      .withUrl("https://node1.irys.xyz")  
       .mainnet();
 
     // Upload image
