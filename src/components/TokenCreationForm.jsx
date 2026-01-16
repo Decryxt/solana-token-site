@@ -114,14 +114,17 @@ export default function TokenCreationForm() {
       console.log("Selected wallet name:", wallet?.wallet?.adapter?.name);
       console.log("Adapter publicKey:", wallet?.wallet?.adapter?.publicKey?.toBase58?.());
 
-      const price = await irys.getPrice(imageFile.size);
-      const balance = await irys.getBalance();
+    const price = await irys.getPrice(imageFile.size);
+    const balance = await irys.getBalance();
 
-      if (balance.lt(price)) {
-        const buffer = price.muln(12).divn(10); // +20% buffer
-        console.log("Funding Irys with (atomic):", buffer.toString());
-        await irys.fund(buffer);
-      }
+    const priceBI = BigInt(price.toString());
+    const balBI = BigInt(balance.toString());
+
+    if (balBI < priceBI) {
+      const bufferBI = (priceBI * 12n) / 10n; // +20%
+      console.log("Funding Irys with (atomic):", bufferBI.toString());
+      await irys.fund(bufferBI);
+    }
 
     // Upload image
     const mime = imageFile?.type || "image/png";
