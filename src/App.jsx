@@ -135,7 +135,7 @@ export default function App() {
 
   return (
     <ConnectionProvider endpoint={solanaEndpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
+      <WalletProvider wallets={wallets} autoConnect={false}>
         <WalletModalProvider>
           <div className="relative min-h-screen font-poppins overflow-hidden text-white">
             {/* Background based on theme */}
