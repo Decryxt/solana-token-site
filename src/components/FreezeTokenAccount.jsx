@@ -22,7 +22,10 @@ export default function FreezeTokenAccount({ onBack }) {
   const [processing, setProcessing] = useState(false);
 
   const { publicKey, sendTransaction } = useWallet();
-  const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
+  const connection = new Connection(
+    import.meta.env.VITE_SOLANA_RPC,
+    "confirmed"
+  );
 
   useEffect(() => {
     async function fetchTokens() {

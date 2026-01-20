@@ -11,10 +11,12 @@ import {
 
 export default function CloseTokenAccount({ onBack }) {
   const { publicKey, sendTransaction } = useWallet();
-  const connection = useMemo(
-    () => new Connection(clusterApiUrl("mainnet-beta"), "confirmed"),
-    []
-  );
+  
+  const connection = useMemo(() => {
+    const rpc = import.meta.env.VITE_SOLANA_RPC;
+    if (!rpc) throw new Error("Missing VITE_SOLANA_RPC in .env");
+    return new Connection(rpc, "confirmed");
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [tokenAccounts, setTokenAccounts] = useState([]);
