@@ -1,72 +1,123 @@
 import { useMemo, useState } from "react";
 
-const SECTIONS = [
+// ✅ Add nested structure so Docs can “branch” cleanly
+const NAV = [
   { id: "whitepaper", label: "Whitepaper" },
-  { id: "video-guides", label: "Video Guides" }, // ✅ NEW
-  { id: "getting-started", label: "Getting Started" },
+  {
+    id: "video-guides",
+    label: "Video Guides",
+    children: [
+      { id: "video-guides/token-creation", label: "Token Creation" },
+      { id: "video-guides/freeze", label: "Freeze Token Account" },
+      { id: "video-guides/thaw", label: "Thaw Token Account" },
+      { id: "video-guides/set-authority", label: "Set Authority" },
+      { id: "video-guides/revoke-freeze", label: "Revoke Freeze Authority" },
+      { id: "video-guides/revoke-mint", label: "Revoke Mint Authority" },
+    ],
+  },
+  {
+    id: "getting-started",
+    label: "Getting Started",
+    children: [
+      { id: "getting-started/overview", label: "Overview" },
+      { id: "getting-started/wallet", label: "Wallet & Network" },
+      { id: "getting-started/mint-flow", label: "Mint Flow" },
+    ],
+  },
+  {
+    id: "security",
+    label: "Security",
+    children: [
+      { id: "security/authorities", label: "Authorities Explained" },
+      { id: "security/honeypots", label: "Honeypots & Freeze Authority" },
+      { id: "security/best-practices", label: "Best Practices" },
+    ],
+  },
   { id: "fees", label: "Fees" },
-  { id: "security", label: "Security" },
   { id: "troubleshooting", label: "Troubleshooting" },
 ];
 
-// ✅ NEW: demo videos list (update filenames to match exactly)
-const VIDEO_GUIDES = [
-  {
-    id: "token-creation",
+// ✅ One guide shown at a time
+const VIDEO_GUIDES = {
+  "video-guides/token-creation": {
     title: "Token Creation",
     desc: "Create a Solana token on mainnet, upload metadata, and complete the mint flow.",
     src: "https://assets.originfi.net/docs/TokenCreationDemo.mp4",
   },
-  {
-    id: "freeze",
+  "video-guides/freeze": {
     title: "Freeze Token Account",
     desc: "Freeze a specific token account to prevent transfers from that account.",
+    // Update to your final working URL (case-sensitive):
     src: "https://assets.originfi.net/docs/FreezeTokenACCDemo.mp4",
   },
-  {
-    id: "thaw",
+  "video-guides/thaw": {
     title: "Thaw Token Account",
     desc: "Restore a frozen token account back to an active state.",
     src: "https://assets.originfi.net/docs/ThawTokenACCDemo.mp4",
   },
-  {
-    id: "set-authority",
+  "video-guides/set-authority": {
     title: "Set Authority",
     desc: "Transfer or update authorities to a new wallet address or revoke them permanently.",
     src: "https://assets.originfi.net/docs/SetAuthorityDemo.mp4",
   },
-  {
-    id: "revoke-freeze",
+  "video-guides/revoke-freeze": {
     title: "Revoke Freeze Authority",
     desc: "Permanently remove the ability to freeze token accounts (anti-honeypot trust signal).",
     src: "https://assets.originfi.net/docs/RevokeFreeze.mp4",
   },
-  {
-    id: "revoke-mint",
+  "video-guides/revoke-mint": {
     title: "Revoke Mint Authority",
     desc: "Permanently remove the ability to mint additional supply (fixed supply guarantee).",
     src: "https://assets.originfi.net/docs/RevokeMint.mp4",
   },
-];
+};
+
+function Chevron({ open }) {
+  return (
+    <span
+      className={[
+        "inline-block transition-transform text-gray-400",
+        open ? "rotate-90" : "rotate-0",
+      ].join(" ")}
+    >
+      ▶
+    </span>
+  );
+}
 
 export default function Docs() {
   const [active, setActive] = useState("whitepaper");
 
+  // ✅ expanded branches (so you can reuse this pattern everywhere)
+  const [expanded, setExpanded] = useState({
+    "video-guides": true,
+    "getting-started": false,
+    security: false,
+  });
+
   const whitepaperUrl = useMemo(() => "/docs/originfi-whitepaper-dec-2025.pdf", []);
+
+  const activeGuide = VIDEO_GUIDES[active] ?? null;
 
   const headerTitle =
     active === "whitepaper"
       ? "OriginFi Whitepaper"
-      : active === "video-guides"
+      : active.startsWith("video-guides")
         ? "Video Guides"
-        : "Coming Soon";
+        : "Docs";
 
   const headerSub =
     active === "whitepaper"
       ? "View online or download the PDF."
-      : active === "video-guides"
-        ? "Short demos showing how each OriginFi action works on mainnet."
-        : "This section will be expanded over time.";
+      : active.startsWith("video-guides")
+        ? "Select a guide from the left to keep this page compact."
+        : "Select a section from the left.";
+
+  function toggleBranch(id) {
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+    // optional: clicking the parent also selects it
+    setActive(id);
+  }
 
   return (
     <div className="min-h-[calc(100vh-80px)] px-4 py-10 overflow-x-hidden">
@@ -91,22 +142,71 @@ export default function Docs() {
                 </div>
 
                 <div className="p-2">
-                  {SECTIONS.map((s) => {
-                    const isActive = active === s.id;
+                  {NAV.map((item) => {
+                    const isBranch = !!item.children?.length;
+                    const isOpen = !!expanded[item.id];
+                    const isActiveParent =
+                      active === item.id || active.startsWith(item.id + "/");
+
+                    if (!isBranch) {
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setActive(item.id)}
+                          className={[
+                            "w-full text-left px-3 py-2 rounded-lg text-sm transition",
+                            active === item.id
+                              ? "bg-[#1CEAB9]/10 text-[#1CEAB9] border border-[#1CEAB9]/30"
+                              : "text-gray-200 hover:bg-white/5 border border-transparent",
+                          ].join(" ")}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    }
+
                     return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setActive(s.id)}
-                        className={[
-                          "w-full text-left px-3 py-2 rounded-lg text-sm transition",
-                          isActive
-                            ? "bg-[#1CEAB9]/10 text-[#1CEAB9] border border-[#1CEAB9]/30"
-                            : "text-gray-200 hover:bg-white/5 border border-transparent",
-                        ].join(" ")}
-                      >
-                        {s.label}
-                      </button>
+                      <div key={item.id} className="mb-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleBranch(item.id)}
+                          className={[
+                            "w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center justify-between",
+                            isActiveParent
+                              ? "bg-[#1CEAB9]/10 text-[#1CEAB9] border border-[#1CEAB9]/30"
+                              : "text-gray-200 hover:bg-white/5 border border-transparent",
+                          ].join(" ")}
+                        >
+                          <span className="flex items-center gap-2">
+                            <Chevron open={isOpen} />
+                            {item.label}
+                          </span>
+                        </button>
+
+                        {isOpen && (
+                          <div className="mt-1 ml-6 space-y-1">
+                            {item.children.map((child) => {
+                              const childActive = active === child.id;
+                              return (
+                                <button
+                                  key={child.id}
+                                  type="button"
+                                  onClick={() => setActive(child.id)}
+                                  className={[
+                                    "w-full text-left px-3 py-2 rounded-lg text-xs transition",
+                                    childActive
+                                      ? "bg-white/5 text-white border border-white/10"
+                                      : "text-gray-300 hover:bg-white/5 border border-transparent",
+                                  ].join(" ")}
+                                >
+                                  {child.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -121,7 +221,7 @@ export default function Docs() {
                     <div className="text-xs text-gray-400 mt-1">{headerSub}</div>
                   </div>
 
-                  {/* Actions only for whitepaper */}
+                  {/* Whitepaper actions */}
                   {active === "whitepaper" && (
                     <div className="flex gap-2">
                       <a
@@ -143,8 +243,9 @@ export default function Docs() {
                   )}
                 </div>
 
-                {/* Content body */}
-                <div className="p-4">
+                {/* ✅ IMPORTANT: constrain content height so the page doesn’t get crazy long */}
+                <div className="p-4 max-h-[72vh] overflow-y-auto">
+                  {/* Whitepaper */}
                   {active === "whitepaper" && (
                     <div className="space-y-4">
                       <div className="rounded-xl border border-white/10 bg-black/20 p-4">
@@ -176,51 +277,46 @@ export default function Docs() {
                     </div>
                   )}
 
+                  {/* Video Guides parent page */}
                   {active === "video-guides" && (
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                      <h2 className="text-white font-semibold text-lg">OriginFi Demo Guides</h2>
+                      <p className="mt-2 text-sm text-gray-300">
+                        Select a guide from the left. This keeps the Docs page compact and easy to navigate.
+                      </p>
+                      <p className="mt-2 text-xs text-gray-400">
+                        Tip: Filenames are case-sensitive. Match the URL exactly.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ✅ One selected guide at a time */}
+                  {activeGuide && (
                     <div className="space-y-4">
                       <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                        <h2 className="text-white font-semibold text-lg">OriginFi Demo Guides</h2>
-                        <p className="mt-2 text-sm text-gray-300">
-                          Each guide shows the full flow inside OriginFi, plus the on-chain result.
-                        </p>
-                        <p className="mt-2 text-xs text-gray-400">
-                          Tip: If a video doesn’t load, double-check the filename capitalization in the URL.
-                        </p>
-                      </div>
+                        <h2 className="text-white font-semibold text-lg">{activeGuide.title}</h2>
+                        <p className="mt-2 text-sm text-gray-300">{activeGuide.desc}</p>
 
-                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                        {VIDEO_GUIDES.map((g) => (
-                          <div
-                            key={g.id}
-                            className="rounded-xl border border-white/10 bg-black/20 p-4"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <h3 className="text-white font-semibold">{g.title}</h3>
-                                <p className="mt-1 text-sm text-gray-300">{g.desc}</p>
-                              </div>
-                            </div>
+                        <div className="mt-4 overflow-hidden rounded-lg border border-white/10 bg-black/40">
+                          <video className="w-full" controls preload="metadata">
+                            <source src={activeGuide.src} type="video/mp4" />
+                          </video>
+                        </div>
 
-                            <div className="mt-4 overflow-hidden rounded-lg border border-white/10 bg-black/40">
-                              <video className="w-full" controls preload="metadata">
-                                <source src={g.src} type="video/mp4" />
-                              </video>
-                            </div>
-
-                            <div className="mt-3 text-xs text-[#1CEAB9]/70">
-                              Demo video • Mainnet flow
-                            </div>
-                          </div>
-                        ))}
+                        <div className="mt-3 text-xs text-[#1CEAB9]/70">
+                          Demo video • Mainnet flow
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {active !== "whitepaper" && active !== "video-guides" && (
-                    <div className="text-gray-300 text-sm leading-relaxed">
-                      <p className="mb-3">This section is reserved for docs content.</p>
-                      <p className="text-gray-400">
-                        You can add guides here later (Getting Started, Fees, Security, etc.).
+                  {/* Everything else (placeholder pages for now) */}
+                  {!activeGuide && active !== "whitepaper" && !active.startsWith("video-guides") && (
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                      <h2 className="text-white font-semibold text-lg">Coming Soon</h2>
+                      <p className="mt-2 text-sm text-gray-300">
+                        This section is ready for your docs content. You can add sub-branches the same way
+                        we did for Video Guides.
                       </p>
                     </div>
                   )}
