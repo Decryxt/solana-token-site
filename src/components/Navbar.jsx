@@ -21,6 +21,22 @@ export default function Navbar({ onNavigate }) {
 
   const handleClick = (id) => {
     setMenuOpen(false);
+
+    // Special handling for Create Token
+    if (id === "create") {
+      const token = localStorage.getItem("originfi_jwt");
+
+      if (onNavigate) {
+        if (token) {
+          onNavigate("create");        // logged in → go straight to create
+        } else {
+          onNavigate("createChoice");  // guest → show choice screen
+        }
+      }
+      return;
+    }
+
+    // All other menu items behave normally
     if (onNavigate) onNavigate(id);
   };
 
