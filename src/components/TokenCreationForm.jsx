@@ -173,8 +173,11 @@ export default function TokenCreationForm() {
       const auth = getAuth();
       const token = auth?.token;
 
-      if (!token) {
-        alert("You must be logged in to create a token.");
+      const isGuest =
+        !token && localStorage.getItem("originfi_session_mode") === "guest";
+
+      if (!token && !isGuest) {
+        alert("Please sign in or continue as guest to create a token.");
         return;
       }
 
@@ -361,6 +364,7 @@ export default function TokenCreationForm() {
 
       // ---- Save to OriginFi backend (verify + store) ----
       // NOTE: We keep all metadata fields here so later we can wire Metaplex.
+      if (token) {
       setStatusMessage("Saving token to OriginFi...");
 
       const body = {
@@ -413,6 +417,21 @@ export default function TokenCreationForm() {
       );
 
       alert(`Token minted.\nMint: ${mintPubkey.toBase58()}\nTx: ${sig}`);
+            } else {
+        // Guest mint success: token exists on-chain, we just skip saving to OriginFi DB
+        setStatusMessage(
+          [
+            "Token minted successfully (Guest Mode).",
+            "Create an account to claim and manage this token in OriginFi.",
+            `Mint: ${mintPubkey.toBase58()}`,
+            `ATA: ${ata.toBase58()}`,
+            `Tx: ${sig}`,
+          ].join("\n")
+        );
+
+        alert(`Token minted (Guest Mode).\nMint: ${mintPubkey.toBase58()}\nTx: ${sig}`);
+      }
+
     } catch (err) {
       console.error("Mint flow error:", err);
       setStatusMessage("Unexpected error while creating token. Check console.");
