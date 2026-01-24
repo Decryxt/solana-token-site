@@ -319,7 +319,7 @@ export default function App() {
                   <div className="mt-8 flex flex-col items-center w-full max-w-3xl px-4">
                     <button
                       onClick={() => {
-                        const token = localStorage.getItem("token");
+                        const token = localStorage.getItem("originfi_jwt");
                         if (token) setPage("create");
                         else setPage("createChoice");
                       }}
@@ -355,7 +355,7 @@ export default function App() {
               )}
 
               {page === "create" && (() => {
-                const token = localStorage.getItem("token");
+                const token = localStorage.getItem("originfi_jwt");
                 const mode = localStorage.getItem("originfi_session_mode"); // "guest" allowed
 
                 // If not logged in AND they didn't choose guest, force the choice screen
