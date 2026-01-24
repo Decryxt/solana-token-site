@@ -26,6 +26,7 @@ import Roadmap from "./components/Roadmap";
 import WalletConnect from "./components/WalletConnect";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
+import CreateChoice from "./components/CreateChoice";
 
 import GlassCards from "./components/GlassCards";
 
@@ -317,7 +318,11 @@ export default function App() {
 
                   <div className="mt-8 flex flex-col items-center w-full max-w-3xl px-4">
                     <button
-                      onClick={() => setPage("create")}
+                      onClick={() => {
+                        const token = localStorage.getItem("token");
+                        if (token) setPage("create");
+                        else setPage("createChoice");
+                      }}
                       className="
                         mb-0
                         px-8 py-3
@@ -349,7 +354,17 @@ export default function App() {
                 />
               )}
 
-              {page === "create" && <TokenCreationForm />}
+              {page === "create" && (() => {
+                const token = localStorage.getItem("token");
+                const mode = localStorage.getItem("originfi_session_mode"); // "guest" allowed
+
+                // If not logged in AND they didn't choose guest, force the choice screen
+                if (!token && mode !== "guest") {
+                  return <CreateChoice setPage={setPage} />;
+                }
+
+                return <TokenCreationForm />;
+              })()}
               {page === "dashboard" && <TokenDashboard />}
               {page === "badges" && <BadgeShowcase />}
               {page === "about" && <About />}
@@ -361,6 +376,7 @@ export default function App() {
               {page === "roadmap" && <Roadmap />}
               {page === "forgot" && <ForgotPassword setPage={setPage} />}
               {page === "reset" && <ResetPassword setPage={setPage} />}
+              {page === "createChoice" && <CreateChoice setPage={setPage} />}
 
               {page === "settings" && (
                 <Settings
