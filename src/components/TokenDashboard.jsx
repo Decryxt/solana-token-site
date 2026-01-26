@@ -29,6 +29,8 @@ export default function TokenDashboard() {
   const [activeAuthorityDetail, setActiveAuthorityDetail] = useState(null);
   const [showAnalyticsPanel, setShowAnalyticsPanel] = useState(false); // <-- NEW
 
+  const isAuthed = !!localStorage.getItem("originfi_jwt");
+
   const authorityOptions = [
     {
       title: "Revoke Mint Authority",
@@ -193,7 +195,13 @@ export default function TokenDashboard() {
                 </p>
                 <button
                   className="select-button"
-                  onClick={handleManageAuthoritiesClick}
+                  onClick={() => {
+                    if (!isAuthed) {
+                      alert("Please sign in to manage token authorities.");
+                      return;
+                    }
+                    handleManageAuthoritiesClick();
+                  }}
                 >
                   Manage Authorities
                 </button>
