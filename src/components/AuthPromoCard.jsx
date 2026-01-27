@@ -53,7 +53,7 @@ export default function AuthPromoCard({
     {
       icon: <FaLock className="text-[#7CF7D4]" />,
       label: "Gated tools",
-      sub: "Access advanced features",
+      sub: "Advanced creator features",
     },
     {
       icon: <FaLayerGroup className="text-[#1CEAB9]" />,
@@ -68,16 +68,18 @@ export default function AuthPromoCard({
   ];
 
   return (
+    // Strictly fill the dashboard rectangle — never go outside
     <div className="w-full h-full">
       <div className="w-full h-full rounded-2xl bg-[#0B0E11] border border-[#1CEAB9]/60 shadow-xl overflow-hidden flex flex-col">
-        {/* Top Bar + Centered Header */}
-        <div className="relative px-6 pt-4 pb-4 border-b border-[#1CEAB9]/20 shrink-0">
+        {/* Top Bar + Horizontal Header (height-efficient) */}
+        <div className="relative px-6 pt-4 pb-3 border-b border-[#1CEAB9]/20 shrink-0">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-[#1CEAB9]/10 blur-3xl" />
             <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-[#A78BFA]/8 blur-3xl" />
           </div>
 
-          <div className="relative z-10 flex items-center justify-between">
+          {/* Back + account hint */}
+          <div className="relative z-10 flex items-center justify-between mb-3">
             <button
               type="button"
               onClick={onBack}
@@ -89,36 +91,47 @@ export default function AuthPromoCard({
 
             <div className="hidden sm:flex items-center gap-2 text-xs text-white/60">
               <FaExternalLinkAlt className="text-[#1CEAB9]" />
-              Use <span className="text-white/80 font-semibold">Account</span> (top-right)
+              Use <span className="text-white/80 font-semibold">Account</span>{" "}
+              (top-right)
             </div>
           </div>
 
-          <div className="relative z-10 mt-3 flex flex-col items-center text-center">
-            <div className="w-11 h-11 rounded-xl border border-[#1CEAB9]/35 bg-[#101418] flex items-center justify-center">
-              <FaCoins className="text-[#1CEAB9] text-xl" />
+          {/* Main header row */}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+            {/* Left: title */}
+            <div className="md:col-span-2 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl border border-[#1CEAB9]/35 bg-[#101418] flex items-center justify-center">
+                <FaCoins className="text-[#1CEAB9] text-xl" />
+              </div>
+
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-white leading-tight">
+                  {title}
+                </h2>
+                <p className="mt-1 text-sm text-white/70 leading-snug">
+                  {subtitle}
+                </p>
+              </div>
             </div>
 
-            <h2 className="mt-2 text-xl sm:text-2xl font-bold text-white leading-tight">
-              {title}
-            </h2>
-
-            <p className="mt-1 text-xs sm:text-sm text-white/70 leading-snug max-w-xl">
-              {subtitle}
-            </p>
-
-            {/* Loud FREE badge */}
-            <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-[#1CEAB9]/40 bg-[#1CEAB9]/12 px-4 py-2">
-              <FaCheckCircle className="text-[#1CEAB9]" />
-              <span className="text-sm text-white font-bold tracking-wide">
-                100% FREE — no cost, no commitment
-              </span>
+            {/* Right: FREE badge */}
+            <div className="flex md:justify-end">
+              <div className="inline-flex items-center gap-2 rounded-xl border border-[#1CEAB9]/40 bg-[#1CEAB9]/12 px-4 py-2">
+                <FaCheckCircle className="text-[#1CEAB9]" />
+                <span className="text-sm text-white font-bold">
+                  100% FREE
+                </span>
+                <span className="hidden lg:inline text-xs text-white/70">
+                  — no cost, no commitment
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Body */}
+        {/* Body (fills remaining height; no overflow outside rectangle) */}
         <div className="flex-1 px-6 py-5 flex flex-col">
-          {/* What you unlock (fills space, still compact) */}
+          {/* What you unlock (compact; fills space better) */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
             <div className="flex items-center justify-center gap-2 text-sm font-semibold text-white">
               <FaBolt className="text-[#FFD37A]" />
@@ -146,7 +159,6 @@ export default function AuthPromoCard({
               ))}
             </div>
 
-            {/* Trust line */}
             <div className="mt-2 text-center text-[11px] text-white/55">
               We gate certain tools to keep analytics private and reduce automated scraping.
             </div>
@@ -178,7 +190,9 @@ export default function AuthPromoCard({
 
           {/* Bottom conversion line pinned */}
           <div className="mt-auto pt-4 text-center text-xs text-white/70">
-            Click <span className="text-white font-semibold">Account</span> (top-right) to sign in — then return here to continue.
+            Click{" "}
+            <span className="text-white font-semibold">Account</span> (top-right)
+            to continue — then come back here.
           </div>
         </div>
       </div>
