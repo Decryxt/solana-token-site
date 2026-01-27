@@ -12,50 +12,67 @@ import {
 } from "react-icons/fa";
 
 /**
- * UI-only card (no routing, no auth logic).
- * Use `onBack` to close/hide it from the parent.
+ * Universal, UI-only promo card (no routing/auth logic).
+ * Designed to fit inside an existing container (like TokenDashboard panel) without causing scroll.
  */
 export default function AuthPromoCard({
   onBack = () => {},
-  title = "Unlock OriginFi Analytics",
-  subtitle = "Create an account or sign in to track your tokens, view analytics, and access your creator dashboard.",
+
+  // Core copy
+  title = "Unlock Creator Features",
+  subtitle = "Create an account or sign in to access premium creator tools and keep everything organized under your profile.",
+
+  // CTA button labels (UI only)
   primaryHint = "Sign in",
   secondaryHint = "Create account",
+  showSecondary = true,
+
+  // Perks + highlights are customizable so this is universal
+  perks,
+  highlights,
+
+  // Optional: show small tip line
+  tip = "Tip: Anything created while signed in will automatically appear in your dashboard.",
 }) {
-  const perks = [
+  const defaultPerks = [
     {
       icon: <FaChartLine className="text-[#1CEAB9] text-xl" />,
-      title: "Token analytics dashboard",
-      desc: "View performance insights for tokens you’ve created — in one place.",
+      title: "Creator dashboard",
+      desc: "Keep track of what you’ve created — all in one place.",
     },
     {
       icon: <FaHistory className="text-[#1CEAB9] text-xl" />,
-      title: "History & tracking",
-      desc: "Keep your creations organized so you can come back anytime.",
+      title: "History & organization",
+      desc: "Come back later and pick up where you left off.",
     },
     {
       icon: <FaShieldAlt className="text-[#1CEAB9] text-xl" />,
-      title: "Safer creator experience",
-      desc: "Account-based tracking helps prevent random browsing and scraping.",
+      title: "Cleaner access control",
+      desc: "Limits random browsing and keeps tools account-based.",
     },
     {
       icon: <FaBolt className="text-[#1CEAB9] text-xl" />,
       title: "Faster workflow",
-      desc: "Manage your tokens and analytics without re-entering details.",
+      desc: "Less friction when using advanced tools repeatedly.",
     },
   ];
 
-  const highlights = [
-    { icon: <FaCheckCircle className="text-[#1CEAB9]" />, text: "Access analytics for tokens you create" },
-    { icon: <FaUserLock className="text-[#1CEAB9]" />, text: "Private dashboard tied to your account" },
-    { icon: <FaStar className="text-[#1CEAB9]" />, text: "Future perks: alerts, exports, deeper insights" },
+  const defaultHighlights = [
+    { icon: <FaCheckCircle className="text-[#1CEAB9]" />, text: "Account-based access to gated tools" },
+    { icon: <FaUserLock className="text-[#1CEAB9]" />, text: "Private dashboard tied to you" },
+    { icon: <FaStar className="text-[#1CEAB9]" />, text: "Future perks expand over time" },
   ];
 
+  const perksToUse = perks?.length ? perks : defaultPerks;
+  const highlightsToUse = highlights?.length ? highlights : defaultHighlights;
+
   return (
-    <div className="w-full flex items-center justify-center py-8 px-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-[#0B0E11] border border-[#1CEAB9]/60 shadow-2xl overflow-hidden">
+    // IMPORTANT: no outer py/px that would fight the dashboard panel size
+    <div className="w-full h-full flex items-center justify-center">
+      {/* Fill the available panel area */}
+      <div className="w-full h-full max-w-none rounded-2xl bg-[#0B0E11] border border-[#1CEAB9]/60 shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="relative p-6 border-b border-[#1CEAB9]/20">
+        <div className="relative p-6 border-b border-[#1CEAB9]/20 shrink-0">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[#1CEAB9]/10 blur-3xl" />
             <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-[#1CEAB9]/10 blur-3xl" />
@@ -76,49 +93,43 @@ export default function AuthPromoCard({
             </div>
 
             <div className="min-w-0">
-              <h2 className="text-2xl font-bold text-white leading-tight">
-                {title}
-              </h2>
-              <p className="mt-2 text-sm text-white/70 leading-relaxed">
-                {subtitle}
-              </p>
+              <h2 className="text-2xl font-bold text-white leading-tight">{title}</h2>
+              <p className="mt-2 text-sm text-white/70 leading-relaxed">{subtitle}</p>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-2 text-xs text-white/80 border border-[#1CEAB9]/30 bg-white/5 px-3 py-1.5 rounded-full">
                   <FaCheckCircle className="text-[#1CEAB9]" />
-                  Saved token history
+                  Saved history
                 </span>
                 <span className="inline-flex items-center gap-2 text-xs text-white/80 border border-[#1CEAB9]/30 bg-white/5 px-3 py-1.5 rounded-full">
                   <FaCheckCircle className="text-[#1CEAB9]" />
-                  Private analytics access
+                  Account perks
                 </span>
                 <span className="inline-flex items-center gap-2 text-xs text-white/80 border border-[#1CEAB9]/30 bg-white/5 px-3 py-1.5 rounded-full">
                   <FaCheckCircle className="text-[#1CEAB9]" />
-                  Creator dashboard perks
+                  Premium tools
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Body */}
-        <div className="p-6">
+        {/* Body: use remaining height, avoid scroll by design */}
+        <div className="p-6 flex-1 flex flex-col">
           {/* Perks grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {perks.map((p, idx) => (
+            {perksToUse.slice(0, 4).map((p, idx) => (
               <div
                 key={idx}
                 className="rounded-xl border border-[#1CEAB9]/20 bg-[#101418] p-4 hover:border-[#1CEAB9]/40 transition"
               >
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg border border-[#1CEAB9]/30 bg-black/30 flex items-center justify-center">
-                    {p.icon}
+                    {p.icon || <FaBolt className="text-[#1CEAB9] text-xl" />}
                   </div>
                   <div className="min-w-0">
                     <div className="text-white font-semibold">{p.title}</div>
-                    <div className="mt-1 text-sm text-white/65 leading-relaxed">
-                      {p.desc}
-                    </div>
+                    <div className="mt-1 text-sm text-white/65 leading-relaxed">{p.desc}</div>
                   </div>
                 </div>
               </div>
@@ -129,44 +140,40 @@ export default function AuthPromoCard({
           <div className="mt-6 rounded-xl border border-[#1CEAB9]/20 bg-white/5 p-4">
             <div className="flex items-center gap-2 text-white font-semibold">
               <FaBolt className="text-[#1CEAB9]" />
-              Why sign in?
+              What you get
             </div>
 
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {highlights.map((h, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-lg border border-white/10 bg-black/20 p-3"
-                >
+              {highlightsToUse.slice(0, 3).map((h, idx) => (
+                <div key={idx} className="rounded-lg border border-white/10 bg-black/20 p-3">
                   <div className="flex items-start gap-2">
-                    <div className="mt-0.5">{h.icon}</div>
-                    <div className="text-sm text-white/80 leading-snug">
-                      {h.text}
-                    </div>
+                    <div className="mt-0.5">{h.icon || <FaCheckCircle className="text-[#1CEAB9]" />}</div>
+                    <div className="text-sm text-white/80 leading-snug">{h.text}</div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="mt-4 text-xs text-white/50">
-              Tip: If you already minted tokens while signed in, you’ll see them automatically in Analytics.
-            </div>
+            {tip ? <div className="mt-4 text-xs text-white/50">{tip}</div> : null}
           </div>
 
-          {/* CTA buttons (no logic) */}
-          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+          {/* CTA buttons pinned toward bottom; still UI-only */}
+          <div className="mt-auto pt-6 flex flex-col sm:flex-row gap-3">
             <button
               type="button"
               className="w-full sm:w-1/2 rounded-xl border border-[#1CEAB9] bg-[#0B0E11] hover:bg-[#0F141A] text-white py-2.5 font-semibold transition"
             >
               {primaryHint}
             </button>
-            <button
-              type="button"
-              className="w-full sm:w-1/2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white py-2.5 font-semibold transition"
-            >
-              {secondaryHint}
-            </button>
+
+            {showSecondary && (
+              <button
+                type="button"
+                className="w-full sm:w-1/2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white py-2.5 font-semibold transition"
+              >
+                {secondaryHint}
+              </button>
+            )}
           </div>
 
           <div className="mt-4 text-center text-xs text-white/45">
