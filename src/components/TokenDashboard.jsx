@@ -155,6 +155,7 @@ export default function TokenDashboard() {
     setFade(true);
     setTimeout(() => {
       setShowAnalyticsPanel(false);
+      setShowAuthPromo(false);
       setFade(false);
     }, 300);
   };
@@ -293,6 +294,13 @@ export default function TokenDashboard() {
             >
               Back
             </button>
+          </div>
+        )}
+
+        {/* AUTH PROMO VIEW */}
+        {showAuthPromo && !activeAuthorityDetail && !showAuthorityOptions && !showAnalyticsPanel && (
+          <div className="flex flex-col h-full">
+            <AuthPromoCard onBack={handleAuthPromoBackClick} />
           </div>
         )}
 
