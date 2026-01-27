@@ -21,6 +21,7 @@ import SetAuthority from "./SetAuthority";
 import ApproveDelegate from "./ApproveDelegate";
 import RevokeDelegate from "./RevokeDelegate";
 import CloseTokenAccount from "./CloseTokenAccount";
+import AuthPromoCard from "./AuthPromoCard";
 
 export default function TokenDashboard() {
   const maxWidthStyle = { maxWidth: "1000px" };
@@ -28,6 +29,9 @@ export default function TokenDashboard() {
   const [fade, setFade] = useState(false);
   const [activeAuthorityDetail, setActiveAuthorityDetail] = useState(null);
   const [showAnalyticsPanel, setShowAnalyticsPanel] = useState(false);
+  const [showAuthPromo, setShowAuthPromo] = useState(false);
+
+  const isAuthed = !!localStorage.getItem("originfi_jwt");
 
   const authorityOptions = [
     {
@@ -129,9 +133,20 @@ export default function TokenDashboard() {
   const handleShowAnalyticsClick = () => {
     setFade(true);
     setTimeout(() => {
-      setShowAnalyticsPanel(true);
+      if (!isAuthed) {
+        // Not signed in → show the promo card instead of analytics
+        setShowAuthPromo(true);
+        setShowAnalyticsPanel(false);
+      } else {
+        // Signed in → show analytics
+        setShowAnalyticsPanel(true);
+        setShowAuthPromo(false);
+      }
+
+      // Always leave authority options/detail when entering analytics/promo
       setShowAuthorityOptions(false);
       setActiveAuthorityDetail(null);
+
       setFade(false);
     }, 300);
   };
@@ -140,6 +155,14 @@ export default function TokenDashboard() {
     setFade(true);
     setTimeout(() => {
       setShowAnalyticsPanel(false);
+      setFade(false);
+    }, 300);
+  };
+
+  const handleAuthPromoBackClick = () => {
+    setFade(true);
+    setTimeout(() => {
+      setShowAuthPromo(false);
       setFade(false);
     }, 300);
   };
@@ -173,7 +196,7 @@ export default function TokenDashboard() {
         }}
       >
         {/* HOME SPLIT VIEW */}
-        {!showAuthorityOptions && !activeAuthorityDetail && !showAnalyticsPanel && (
+        {!showAuthorityOptions && !activeAuthorityDetail && !showAnalyticsPanel && !showAuthPromo && (
           <div className="flex h-full">
             {/* Left: Authority Actions */}
             <div className="w-1/2 pr-6 flex flex-col justify-between items-center">
