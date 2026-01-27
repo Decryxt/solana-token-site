@@ -1,24 +1,14 @@
 import React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 
 export default function SignInRequiredCard({
   title = "Sign in required",
-  message = "You must be signed in to apply authority actions to your token.",
+  message = "You must be signed in to manage token authority actions.",
   primaryText = "Sign In",
   secondaryText = "Create Account",
   showSecondary = true,
+  loginPath = "/login",
+  registerPath = "/register",
 }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const goLogin = () => {
-    navigate("/login", { state: { from: location.pathname } });
-  };
-
-  const goRegister = () => {
-    navigate("/register", { state: { from: location.pathname } });
-  };
-
   return (
     <div className="w-full flex items-center justify-center py-10">
       <div className="w-full max-w-md rounded-2xl bg-[#0B0E11] border border-[#1CEAB9]/60 shadow-xl p-6">
@@ -29,7 +19,7 @@ export default function SignInRequiredCard({
 
         <div className="mt-6 flex flex-col gap-3">
           <button
-            onClick={goLogin}
+            onClick={() => (window.location.href = loginPath)}
             className="w-full rounded-xl border border-[#1CEAB9] bg-[#0B0E11] hover:bg-[#0F141A] text-white py-2.5 font-medium"
           >
             {primaryText}
@@ -37,7 +27,7 @@ export default function SignInRequiredCard({
 
           {showSecondary && (
             <button
-              onClick={goRegister}
+              onClick={() => (window.location.href = registerPath)}
               className="w-full rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white py-2.5 font-medium"
             >
               {secondaryText}
