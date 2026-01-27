@@ -192,9 +192,8 @@ export default function TokenDashboard() {
         style={{
           maxWidth: "1400px",
           width: "100%",
-          height: showAuthPromo ? "auto" : "calc(100vh - 250px)",
-          minHeight: showAuthPromo ? "520px" : undefined,
-          overflowY: showAuthPromo ? "visible" : "auto",
+          height: "calc(100vh - 250px)",
+          overflowY: "auto",
         }}
       >
         {/* HOME SPLIT VIEW */}
