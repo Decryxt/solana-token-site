@@ -9,7 +9,7 @@ import {
   FaUserLock,
   FaCheckCircle,
   FaCoins,
-  FaArrowUpRight,
+  FaExternalLinkAlt,
 } from "react-icons/fa";
 
 export default function AuthPromoCard({
@@ -74,7 +74,7 @@ export default function AuthPromoCard({
 
             {/* Centered hint */}
             <div className="hidden md:flex items-center gap-2 text-xs text-white/60">
-              <FaArrowUpRight className="text-[#1CEAB9]" />
+              <FaExternalLinkAlt className="text-[#1CEAB9]" />
               Go to <span className="text-white/85">Account</span> (top-right) to sign in — it’s free
             </div>
           </div>
