@@ -8,23 +8,25 @@ export default function ForgotPassword({ setPage }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setMessage("");
 
     const API_BASE = import.meta.env.VITE_API_URL;
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim() }),
       });
 
-      const data = await res.json();
-      setMessage(data.message || "If that email exists, a reset link has been sent.");
+      // Always generic success
+      setMessage("If an account exists for that email, we sent a reset link.");
+      setEmail("");
     } catch {
-      setMessage("Something went wrong. Try again.");
+      setMessage("If an account exists for that email, we sent a reset link.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -34,7 +36,7 @@ export default function ForgotPassword({ setPage }) {
       </h1>
 
       <p className="text-gray-400 text-sm text-center mb-6">
-        Enter your email and we’ll send you a reset token in the backend logs.
+        Enter your email and we’ll send you a password reset link.
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -51,7 +53,7 @@ export default function ForgotPassword({ setPage }) {
           className="p-3 bg-[#1CEAB9] text-black font-semibold rounded hover:bg-teal-400 transition"
           disabled={loading}
         >
-          {loading ? "Sending..." : "Send Reset Token"}
+          {loading ? "Sending..." : "Send Reset Link"}
         </button>
       </form>
 
@@ -64,12 +66,9 @@ export default function ForgotPassword({ setPage }) {
           className="text-[#1CEAB9] hover:underline block w-full"
           onClick={() => setPage("reset")}
         >
-          I already have a reset token
+          I already clicked the link
         </button>
-        <button
-          className="hover:underline"
-          onClick={() => setPage("home")}
-        >
+        <button className="hover:underline" onClick={() => setPage("home")}>
           Back to Home
         </button>
       </div>

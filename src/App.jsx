@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 
 import {
   ConnectionProvider,
@@ -32,6 +33,20 @@ import GlassCards from "./components/GlassCards";
 
 export default function App() {
   const [page, setPage] = useState("home");
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    // 🔐 Token always wins
+    if (params.get("token")) {
+      setPage("reset");
+      return;
+    }
+
+    // 🧭 Fallback page navigation
+    const p = params.get("page");
+    if (p === "forgot") setPage("forgot");
+    if (p === "reset") setPage("reset");
+  }, []);
   const [network, setNetwork] = useState("mainnet-beta");
   const [theme, setTheme] = useState("dark");
 

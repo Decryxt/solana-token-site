@@ -1,15 +1,28 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ResetPassword({ setPage }) {
   const [token, setToken] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Pull token from URL once
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get("token") || "";
+    if (t) setToken(t);
+  }, []);
+
   const handleReset = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setMessage("");
 
+    if (!token) return setMessage("Missing reset token. Please request a new link.");
+    if (password.length < 8) return setMessage("Password must be at least 8 characters.");
+    if (password !== confirm) return setMessage("Passwords do not match.");
+
+    setLoading(true);
     const API_BASE = import.meta.env.VITE_API_URL;
 
     try {
@@ -19,13 +32,20 @@ export default function ResetPassword({ setPage }) {
         body: JSON.stringify({ token, newPassword: password }),
       });
 
-      const data = await res.json();
-      setMessage(data.message || data.error || "Something happened.");
-    } catch {
-      setMessage("Something went wrong.");
-    }
+      const data = await res.json().catch(() => ({}));
 
-    setLoading(false);
+      if (!res.ok) {
+        setMessage(data.message || "Reset link is invalid or expired. Request a new one.");
+      } else {
+        setMessage("Password reset successful. You can now log in.");
+        // Optional: send them home or to login flow
+        // setTimeout(() => setPage("home"), 900);
+      }
+    } catch {
+      setMessage("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,17 +55,17 @@ export default function ResetPassword({ setPage }) {
       </h1>
 
       <p className="text-gray-400 text-sm text-center mb-6">
-        Paste your reset token from the backend and choose a new password.
+        Choose a new password for your account.
       </p>
 
       <form onSubmit={handleReset} className="flex flex-col gap-4">
+        {/* Hidden-ish token field (optional) */}
         <input
           className="p-3 rounded bg-[#111418] text-white border border-gray-700 focus:border-[#1CEAB9] outline-none"
           type="text"
-          placeholder="reset token..."
+          placeholder="reset token (auto-filled from link)..."
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          required
         />
 
         <input
@@ -54,6 +74,15 @@ export default function ResetPassword({ setPage }) {
           placeholder="new password..."
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+
+        <input
+          className="p-3 rounded bg-[#111418] text-white border border-gray-700 focus:border-[#1CEAB9] outline-none"
+          type="password"
+          placeholder="confirm password..."
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
           required
         />
 
@@ -69,11 +98,14 @@ export default function ResetPassword({ setPage }) {
         <p className="text-[#1CEAB9] mt-4 text-center text-sm">{message}</p>
       )}
 
-      <div className="mt-6 text-xs text-center text-gray-400">
+      <div className="mt-6 text-xs text-center text-gray-400 space-y-2">
         <button
-          className="hover:underline"
-          onClick={() => setPage("home")}
+          className="text-[#1CEAB9] hover:underline block w-full"
+          onClick={() => setPage("forgot")}
         >
+          Request a new reset link
+        </button>
+        <button className="hover:underline" onClick={() => setPage("home")}>
           Back to Home
         </button>
       </div>
