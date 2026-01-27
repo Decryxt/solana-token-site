@@ -1,5 +1,4 @@
-import React, { useState, useMemo } from "react";
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import {
   ConnectionProvider,
