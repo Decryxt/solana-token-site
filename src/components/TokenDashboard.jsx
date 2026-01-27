@@ -21,6 +21,7 @@ import SetAuthority from "./SetAuthority";
 import ApproveDelegate from "./ApproveDelegate";
 import RevokeDelegate from "./RevokeDelegate";
 import CloseTokenAccount from "./CloseTokenAccount";
+import SignInRequiredCard from "./SignInRequiredCard";
 
 export default function TokenDashboard() {
   const maxWidthStyle = { maxWidth: "1000px" };
@@ -28,6 +29,7 @@ export default function TokenDashboard() {
   const [fade, setFade] = useState(false);
   const [activeAuthorityDetail, setActiveAuthorityDetail] = useState(null);
   const [showAnalyticsPanel, setShowAnalyticsPanel] = useState(false); // <-- NEW
+  const [showSignInCard, setShowSignInCard] = useState(false);
 
   const isAuthed = !!localStorage.getItem("originfi_jwt");
 
@@ -177,174 +179,180 @@ export default function TokenDashboard() {
           overflowY: "auto",
         }}
       >
-        {/* HOME SPLIT VIEW */}
-        {!showAuthorityOptions &&
-          !activeAuthorityDetail &&
-          !showAnalyticsPanel && (
-            <div className="flex h-full">
-              {/* Left: Authority Actions */}
-              <div className="w-1/2 pr-6 flex flex-col justify-between items-center">
-                <div className="flex items-center space-x-3 mb-3">
-                  <FaShieldAlt className="text-[#1CEAB9] text-2xl" />
-                  <h2 className="text-xl font-semibold text-white">
+        {showSignInCard && !isAuthed ? (
+          <SignInRequiredCard
+            title="Sign in required"
+            message="You must be signed in to manage token authority actions."
+          />
+        ) : (
+          <>
+            {/* HOME SPLIT VIEW */}
+            {!showAuthorityOptions && !activeAuthorityDetail && !showAnalyticsPanel && (
+              <div className="flex h-full">
+                {/* Left: Authority Actions */}
+                <div className="w-1/2 pr-6 flex flex-col justify-between items-center">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <FaShieldAlt className="text-[#1CEAB9] text-2xl" />
+                    <h2 className="text-xl font-semibold text-white">
+                      Authority Actions
+                    </h2>
+                  </div>
+                  <p className="text-gray-400 text-center mb-6 px-4">
+                    Manage your tokens’ security by revoking mint and freeze authorities with ease.
+                  </p>
+                  <button
+                    className="select-button"
+                    onClick={() => {
+                      if (!isAuthed) {
+                        setShowSignInCard(true);
+                        return;
+                      }
+                      handleManageAuthoritiesClick();
+                    }}
+                  >
+                    Manage Authorities
+                  </button>
+                </div>
+
+                {/* Divider */}
+                <div className="h-[90%] w-[2px] bg-[#1CEAB9] rounded-full opacity-60 mx-2 self-center"></div>
+
+                {/* Right: Token Analytics */}
+                <div className="w-1/2 pl-6 flex flex-col justify-between items-center">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <FaChartBar className="text-[#1CEAB9] text-2xl" />
+                    <h2 className="text-xl font-semibold text-white">
+                      Token Analytics
+                    </h2>
+                  </div>
+                  <p className="text-gray-400 text-center mb-6 px-4">
+                    View detailed analytics and performance data of your created tokens.
+                  </p>
+                  <button
+                    className="select-button"
+                    onClick={handleShowAnalyticsClick}
+                  >
+                    Select Token to View Analytics
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* AUTHORITY OPTIONS GRID */}
+            {showAuthorityOptions && !activeAuthorityDetail && (
+              <div className="flex flex-col h-full">
+                <div className="flex justify-center items-center mb-6 space-x-3">
+                  <FaShieldAlt className="text-[#1CEAB9] text-3xl" />
+                  <h2 className="text-center text-3xl font-bold">
                     Authority Actions
                   </h2>
                 </div>
-                <p className="text-gray-400 text-center mb-6 px-4">
-                  Manage your tokens’ security by revoking mint and freeze authorities with ease.
-                </p>
+
+                <div className="grid grid-cols-4 gap-6 px-4" style={{ flexGrow: 1 }}>
+                  {authorityOptions.map(({ title, description, icon, price }, i) => (
+                    <div
+                      key={i}
+                      className="relative bg-[#121619] border border-[#1CEAB9] rounded-lg p-4 cursor-pointer hover:bg-[#1CEAB9] hover:text-black transition flex flex-col items-center text-center"
+                      style={{ minHeight: "100px" }}
+                      title={description}
+                      onClick={() => handleAuthorityOptionClick(title)}
+                    >
+                      <div className="absolute top-2 right-3 text-xs font-semibold text-[#14b89c] select-none">
+                        {price}
+                      </div>
+
+                      {icon}
+                      <h3 className="font-semibold text-lg mb-1">{title}</h3>
+                      <p className="text-gray-300 text-sm flex-grow">
+                        {description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
                 <button
-                  className="select-button"
-                  onClick={() => {
-                    if (!isAuthed) {
-                      alert("Please sign in to manage token authorities.");
-                      return;
-                    }
-                    handleManageAuthoritiesClick();
-                  }}
+                  className="select-button mt-4 self-center"
+                  onClick={handleBackClick}
+                  style={{ width: "200px" }}
                 >
-                  Manage Authorities
+                  Back
                 </button>
               </div>
+            )}
 
-              {/* Divider */}
-              <div className="h-[90%] w-[2px] bg-[#1CEAB9] rounded-full opacity-60 mx-2 self-center"></div>
-
-              {/* Right: Token Analytics */}
-              <div className="w-1/2 pl-6 flex flex-col justify-between items-center">
-                <div className="flex items-center space-x-3 mb-3">
-                  <FaChartBar className="text-[#1CEAB9] text-2xl" />
-                  <h2 className="text-xl font-semibold text-white">
+            {/* TOKEN ANALYTICS VIEW */}
+            {showAnalyticsPanel && !activeAuthorityDetail && !showAuthorityOptions && (
+              <div className="flex flex-col h-full">
+                <div className="flex justify-center items-center mb-6 space-x-3">
+                  <FaChartBar className="text-[#1CEAB9] text-3xl" />
+                  <h2 className="text-center text-3xl font-bold">
                     Token Analytics
                   </h2>
                 </div>
-                <p className="text-gray-400 text-center mb-6 px-4">
-                  View detailed analytics and performance data of your created tokens.
-                </p>
+
+                <div className="flex-1 overflow-y-auto px-2 sm:px-4">
+                  <TokenAnalyticsPanel />
+                </div>
+
                 <button
-                  className="select-button"
-                  onClick={handleShowAnalyticsClick}
+                  className="select-button mt-4 self-center"
+                  onClick={handleAnalyticsBackClick}
+                  style={{ width: "200px" }}
                 >
-                  Select Token to View Analytics
+                  Back
                 </button>
               </div>
-            </div>
-          )}
+            )}
 
-        {/* AUTHORITY OPTIONS GRID */}
-        {showAuthorityOptions && !activeAuthorityDetail && (
-          <div className="flex flex-col h-full">
-            <div className="flex justify-center items-center mb-6 space-x-3">
-              <FaShieldAlt className="text-[#1CEAB9] text-3xl" />
-              <h2 className="text-center text-3xl font-bold">
-                Authority Actions
-              </h2>
-            </div>
+            {/* Detail Views */}
+            {activeAuthorityDetail === "RevokeMintAuthority" && (
+              <div className="flex flex-col h-full">
+                <RevokeMintAuthority onBack={handleDetailBackClick} />
+              </div>
+            )}
 
-            <div className="grid grid-cols-4 gap-6 px-4" style={{ flexGrow: 1 }}>
-              {authorityOptions.map(({ title, description, icon, price }, i) => (
-                <div
-                  key={i}
-                  className="relative bg-[#121619] border border-[#1CEAB9] rounded-lg p-4 cursor-pointer hover:bg-[#1CEAB9] hover:text-black transition flex flex-col items-center text-center"
-                  style={{ minHeight: "100px" }}
-                  title={description}
-                  onClick={() => handleAuthorityOptionClick(title)}
-                >
-                  <div className="absolute top-2 right-3 text-xs font-semibold text-[#14b89c] select-none">
-                    {price}
-                  </div>
+            {activeAuthorityDetail === "RevokeFreezeAuthority" && (
+              <div className="flex flex-col h-full">
+                <RevokeFreezeAuthority onBack={handleDetailBackClick} />
+              </div>
+            )}
 
-                  {icon}
-                  <h3 className="font-semibold text-lg mb-1">{title}</h3>
-                  <p className="text-gray-300 text-sm flex-grow">
-                    {description}
-                  </p>
-                </div>
-              ))}
-            </div>
+            {activeAuthorityDetail === "FreezeTokenAccount" && (
+              <div className="flex flex-col h-full">
+                <FreezeTokenAccount onBack={handleDetailBackClick} />
+              </div>
+            )}
 
-            <button
-              className="select-button mt-4 self-center"
-              onClick={handleBackClick}
-              style={{ width: "200px" }}
-            >
-              Back
-            </button>
-          </div>
-        )}
+            {activeAuthorityDetail === "ThawTokenAccount" && (
+              <div className="flex flex-col h-full">
+                <ThawTokenAccount onBack={handleDetailBackClick} />
+              </div>
+            )}
 
-        {/* TOKEN ANALYTICS VIEW */}
-        {showAnalyticsPanel && !activeAuthorityDetail && !showAuthorityOptions && (
-          <div className="flex flex-col h-full">
-            <div className="flex justify-center items-center mb-6 space-x-3">
-              <FaChartBar className="text-[#1CEAB9] text-3xl" />
-              <h2 className="text-center text-3xl font-bold">
-                Token Analytics
-              </h2>
-            </div>
+            {activeAuthorityDetail === "SetAuthority" && (
+              <div className="flex flex-col h-full">
+                <SetAuthority onBack={handleDetailBackClick} />
+              </div>
+            )}
 
-            <div className="flex-1 overflow-y-auto px-2 sm:px-4">
-              {/* Your analytics UI lives here */}
-              <TokenAnalyticsPanel />
-            </div>
+            {activeAuthorityDetail === "ApproveDelegate" && (
+              <div className="flex flex-col h-full">
+                <ApproveDelegate onBack={handleDetailBackClick} />
+              </div>
+            )}
 
-            <button
-              className="select-button mt-4 self-center"
-              onClick={handleAnalyticsBackClick}
-              style={{ width: "200px" }}
-            >
-              Back
-            </button>
-          </div>
-        )}
+            {activeAuthorityDetail === "RevokeDelegate" && (
+              <div className="flex flex-col h-full">
+                <RevokeDelegate onBack={handleDetailBackClick} />
+              </div>
+            )}
 
-        {/* Detail Views */}
-        {activeAuthorityDetail === "RevokeMintAuthority" && (
-          <div className="flex flex-col h-full">
-            <RevokeMintAuthority onBack={handleDetailBackClick} />
-          </div>
-        )}
-
-        {activeAuthorityDetail === "RevokeFreezeAuthority" && (
-          <div className="flex flex-col h-full">
-            <RevokeFreezeAuthority onBack={handleDetailBackClick} />
-          </div>
-        )}
-
-        {activeAuthorityDetail === "FreezeTokenAccount" && (
-          <div className="flex flex-col h-full">
-            <FreezeTokenAccount onBack={handleDetailBackClick} />
-          </div>
-        )}
-
-        {activeAuthorityDetail === "ThawTokenAccount" && (
-          <div className="flex flex-col h-full">
-            <ThawTokenAccount onBack={handleDetailBackClick} />
-          </div>
-        )}
-
-        {activeAuthorityDetail === "SetAuthority" && (
-          <div className="flex flex-col h-full">
-            <SetAuthority onBack={handleDetailBackClick} />
-          </div>
-        )}
-
-        {activeAuthorityDetail === "ApproveDelegate" && (
-          <div className="flex flex-col h-full">
-            <ApproveDelegate onBack={handleDetailBackClick} />
-          </div>
-        )}
-
-        {activeAuthorityDetail === "RevokeDelegate" && (
-          <div className="flex flex-col h-full">
-            <RevokeDelegate onBack={handleDetailBackClick} />
-          </div>
-        )}
-
-        {activeAuthorityDetail === "CloseTokenAccount" && (
-          <div className="flex flex-col h-full">
-            <CloseTokenAccount onBack={handleDetailBackClick} />
-          </div>
+            {activeAuthorityDetail === "CloseTokenAccount" && (
+              <div className="flex flex-col h-full">
+                <CloseTokenAccount onBack={handleDetailBackClick} />
+              </div>
+            )}
+          </>
         )}
       </div>
 
