@@ -15,7 +15,7 @@ import {
 
 export default function AuthPromoCard({
   onBack = () => {},
-  title = "Sign in to unlock this feature",
+  title = "Sign in or Create account to unlock this feature",
   subtitle = "Account-based access keeps dashboards private, organized, and harder to scrape.",
 }) {
   const perks = [
@@ -91,7 +91,7 @@ export default function AuthPromoCard({
 
             <div className="hidden sm:flex items-center gap-2 text-xs text-white/60">
               <FaExternalLinkAlt className="text-[#1CEAB9]" />
-              Use <span className="text-white/80 font-semibold">Account</span>{" "}
+              Use <span className="text-white/80 font-semibold">Sign In</span>{" "}
               (top-right)
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function AuthPromoCard({
           {/* Bottom conversion line pinned */}
           <div className="mt-auto pt-4 text-center text-xs text-white/70">
             Click{" "}
-            <span className="text-white font-semibold">Account</span> (top-right)
+            <span className="text-white font-semibold">Sign In</span> (top-right)
             to continue — then come back here.
           </div>
         </div>
