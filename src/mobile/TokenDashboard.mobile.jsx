@@ -11,7 +11,7 @@ import {
   FaRegHandshake,
 } from "react-icons/fa";
 
-import RevokeMintAuthority from "../components/RevokeMintAuthority";
+import RevokeMintAuthorityMobile from "./RevokeMintAuthority.mobile";
 import RevokeFreezeAuthority from "../components/RevokeFreezeAuthority";
 import FreezeTokenAccount from "../components/FreezeTokenAccount";
 import ThawTokenAccount from "../components/ThawTokenAccount";
@@ -250,7 +250,7 @@ export default function TokenDashboardMobile() {
 
             <div>
               {activeDetail === "RevokeMintAuthority" && (
-                <RevokeMintAuthority onBack={backFromDetail} />
+                <RevokeMintAuthorityMobile onBack={backFromDetail} />
               )}
               {activeDetail === "RevokeFreezeAuthority" && (
                 <RevokeFreezeAuthority onBack={backFromDetail} />
