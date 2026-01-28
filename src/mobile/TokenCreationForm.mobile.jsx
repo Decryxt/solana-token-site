@@ -11,37 +11,25 @@ import {
 
 import { mintTokenShared } from "../utils/mintToken.mobile";
 
-// ✅ Use your NEW mobile-exclusive wallet connect card
-import MobileWalletConnectCard from "./MobileWalletConnectCard";
+/** Helpers (deep links open your current page inside a wallet browser) */
+function getCurrentUrl() {
+  try {
+    return window.location.href;
+  } catch {
+    return "https://originfi.net";
+  }
+}
+
+function phantomBrowse(url) {
+  return `https://phantom.app/ul/browse/${encodeURIComponent(url)}?ref=originfi`;
+}
+
+function solflareBrowse(url) {
+  return `https://solflare.com/ul/v1/browse?url=${encodeURIComponent(url)}`;
+}
 
 export default function TokenCreationFormMobile({ onBack }) {
   const wallet = useWallet();
-
-  // ✅ Mobile wallet gate (prevents the useless "Select Wallet" dead-end)
-  if (!wallet?.connected) {
-    return (
-      <div className="w-full px-4 pb-24 pt-4">
-        {/* Header (same as your mobile pages) */}
-        <div className="mb-4 flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="rounded-xl border border-[#1CEAB9]/45 px-3 py-2 text-sm text-white hover:border-[#1CEAB9]/80"
-          >
-            Back
-          </button>
-
-          <div className="text-center">
-            <div className="text-base font-semibold text-white">Token Creation</div>
-            <div className="text-xs text-white/55">Mobile</div>
-          </div>
-
-          <div className="w-[64px]" />
-        </div>
-
-        <MobileWalletConnectCard />
-      </div>
-    );
-  }
 
   const [formData, setFormData] = useState({
     name: "",
@@ -57,6 +45,9 @@ export default function TokenCreationFormMobile({ onBack }) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [statusOpen, setStatusOpen] = useState(false);
+
+  // ✅ Wallet-required popup (shown only when they try to mint)
+  const [walletErrorOpen, setWalletErrorOpen] = useState(false);
 
   const setStatusMessage = (msg) => {
     setStatus(String(msg || ""));
@@ -86,6 +77,12 @@ export default function TokenCreationFormMobile({ onBack }) {
     setStatus("");
     setStatusOpen(false);
 
+    // ✅ No gate. Only block when minting.
+    if (!wallet?.connected) {
+      setWalletErrorOpen(true);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -95,11 +92,12 @@ export default function TokenCreationFormMobile({ onBack }) {
         onStatus: setStatusMessage,
       });
 
-      // Optional success alert (kept minimal)
       alert("Token minted. See Mint Console for receipt.");
     } catch (err) {
       console.error("Mobile mint flow error:", err);
-      const msg = err?.message || "Unexpected error while creating token. Check console.";
+      const msg =
+        err?.message ||
+        "Unexpected error while creating token. Check console.";
       setStatusMessage(msg);
       alert(msg);
     } finally {
@@ -111,6 +109,8 @@ export default function TokenCreationFormMobile({ onBack }) {
   const fieldClass =
     "w-full rounded-xl border border-[#1CEAB9]/25 bg-black/30 px-3 py-3 text-sm text-white placeholder:text-white/40 outline-none focus:border-[#1CEAB9]/70";
   const panelClass = "rounded-xl border border-[#1CEAB9]/20 bg-black/20";
+
+  const url = getCurrentUrl();
 
   return (
     <div className="w-full px-4 pb-24 pt-4">
@@ -124,7 +124,9 @@ export default function TokenCreationFormMobile({ onBack }) {
         </button>
 
         <div className="text-center">
-          <div className="text-base font-semibold text-white">Token Creation</div>
+          <div className="text-base font-semibold text-white">
+            Token Creation
+          </div>
           <div className="text-xs text-white/55">Mobile</div>
         </div>
 
@@ -150,7 +152,6 @@ export default function TokenCreationFormMobile({ onBack }) {
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Symbol">
-                {/* ✅ Fixed: visible text + safe typing (no synthetic events) */}
                 <input
                   name="symbol"
                   type="text"
@@ -215,7 +216,9 @@ export default function TokenCreationFormMobile({ onBack }) {
                     className="max-h-28 object-contain rounded"
                   />
                 ) : (
-                  <span className="text-sm text-white/75">Tap to select logo image</span>
+                  <span className="text-sm text-white/75">
+                    Tap to select logo image
+                  </span>
                 )}
 
                 <input
@@ -243,9 +246,12 @@ export default function TokenCreationFormMobile({ onBack }) {
                   className="mt-1"
                 />
                 <div>
-                  <div className="text-sm font-semibold text-white">Make metadata immutable</div>
+                  <div className="text-sm font-semibold text-white">
+                    Make metadata immutable
+                  </div>
                   <div className="text-xs text-white/55 mt-1">
-                    Locks name, symbol, image, and description permanently. Irreversible.
+                    Locks name, symbol, image, and description permanently.
+                    Irreversible.
                   </div>
                 </div>
               </label>
@@ -267,6 +273,79 @@ export default function TokenCreationFormMobile({ onBack }) {
         </div>
       </div>
 
+      {/* ✅ Wallet-required modal */}
+      {walletErrorOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            aria-label="Close wallet required"
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setWalletErrorOpen(false)}
+          />
+
+          <div className="relative w-full max-w-md rounded-2xl border border-[#1CEAB9]/40 overflow-hidden">
+            <div className="bg-[#0B0E11] text-white">
+              <div className="px-4 py-4 border-b border-white/10 flex items-start justify-between">
+                <div>
+                  <div className="text-base font-semibold">Wallet Required</div>
+                  <div className="text-xs text-white/55 mt-1">
+                    Connect a wallet first, then mint.
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={() => setWalletErrorOpen(false)}
+                  className="h-9 w-9 grid place-items-center rounded-full border border-[#1CEAB9]/20 bg-black/30 hover:border-[#1CEAB9]/45"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              <div className="px-4 py-4 space-y-3">
+                <div className="rounded-xl border border-[#1CEAB9]/20 bg-black/20 p-3 text-sm text-white/80">
+                  On mobile, you usually must open OriginFi inside your wallet
+                  browser (Phantom/Solflare), then connect using the navbar Wallet
+                  page.
+                </div>
+
+                <div className="grid gap-2">
+                  <a
+                    href={phantomBrowse(url)}
+                    className="w-full text-center rounded-xl border border-[#1CEAB9]/70 bg-black/30 px-4 py-3 text-sm font-semibold text-white hover:border-[#1CEAB9]"
+                  >
+                    Open in Phantom
+                  </a>
+
+                  <a
+                    href={solflareBrowse(url)}
+                    className="w-full text-center rounded-xl border border-[#1CEAB9]/35 bg-black/30 px-4 py-3 text-sm font-semibold text-white hover:border-[#1CEAB9]/70"
+                  >
+                    Open in Solflare
+                  </a>
+                </div>
+
+                <div className="text-xs text-white/55">
+                  After it opens, tap <span className="text-white">Wallet</span>{" "}
+                  in the navbar and connect.
+                </div>
+              </div>
+
+              <div className="px-4 py-4 border-t border-white/10 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setWalletErrorOpen(false)}
+                  className="h-10 px-4 rounded-xl border border-[#1CEAB9]/25 bg-black/30 text-sm hover:border-[#1CEAB9]/45"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status modal (no backdrop-blur) */}
       {statusOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -283,7 +362,9 @@ export default function TokenCreationFormMobile({ onBack }) {
               <div className="px-4 py-4 border-b border-white/10 flex items-start justify-between">
                 <div>
                   <div className="text-base font-semibold">Mint Console</div>
-                  <div className="text-xs text-white/55 mt-1">Live progress + receipt</div>
+                  <div className="text-xs text-white/55 mt-1">
+                    Live progress + receipt
+                  </div>
                 </div>
 
                 <button
