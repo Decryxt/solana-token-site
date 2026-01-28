@@ -14,12 +14,12 @@ import {
 import RevokeMintAuthorityMobile from "./RevokeMintAuthority.mobile";
 import RevokeFreezeAuthorityMobile from "./RevokeFreezeAuthority.mobile";
 import FreezeTokenAccountMobile from "./FreezeTokenAccount.mobile";
-import ThawTokenAccount from "../components/ThawTokenAccount";
+import ThawTokenAccountMobile from "./ThawTokenAccount.mobile";
 import TokenAnalyticsPanel from "../components/TokenAnalyticsPanel";
-import SetAuthority from "../components/SetAuthority";
-import ApproveDelegate from "../components/ApproveDelegate";
-import RevokeDelegate from "../components/RevokeDelegate";
-import CloseTokenAccount from "../components/CloseTokenAccount";
+import SetAuthorityMobile from "./SetAuthority.mobile";
+import ApproveDelegateMobile from "./ApproveDelegate.mobile";
+import RevokeDelegateMobile from "./RevokeDelegate.mobile";
+import CloseTokenAccountMobile from "./CloseTokenAccount.mobile";
 import AuthPromoCard from "../components/AuthPromoCard";
 
 export default function TokenDashboardMobile() {
@@ -259,17 +259,17 @@ export default function TokenDashboardMobile() {
                 <FreezeTokenAccountMobile onBack={backFromDetail} />
               )}
               {activeDetail === "ThawTokenAccount" && (
-                <ThawTokenAccount onBack={backFromDetail} />
+                <ThawTokenAccountMobile onBack={backFromDetail} />
               )}
-              {activeDetail === "SetAuthority" && <SetAuthority onBack={backFromDetail} />}
+              {activeDetail === "SetAuthority" && <SetAuthorityMobile onBack={backFromDetail} />}
               {activeDetail === "ApproveDelegate" && (
-                <ApproveDelegate onBack={backFromDetail} />
+                <ApproveDelegateMobile onBack={backFromDetail} />
               )}
               {activeDetail === "RevokeDelegate" && (
-                <RevokeDelegate onBack={backFromDetail} />
+                <RevokeDelegateMobile onBack={backFromDetail} />
               )}
               {activeDetail === "CloseTokenAccount" && (
-                <CloseTokenAccount onBack={backFromDetail} />
+                <CloseTokenAccountMobile onBack={backFromDetail} />
               )}
             </div>
           </div>
