@@ -144,7 +144,7 @@ export default function TokenDashboardMobile() {
         {/* HOME */}
         {view === "home" && (
           <div className="mt-4 space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-md p-5 text-white">
+            <div className="mt-6">
               <div className="flex items-center gap-3">
                 <FaShieldAlt className="text-[#1CEAB9] text-lg" />
                 <div className="font-semibold">Authority Actions</div>
@@ -161,7 +161,7 @@ export default function TokenDashboardMobile() {
               </button>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-md p-5 text-white">
+            <div className="mt-6">
               <div className="flex items-center gap-3">
                 <FaChartBar className="text-[#1CEAB9] text-lg" />
                 <div className="font-semibold">Token Analytics</div>
