@@ -11,6 +11,7 @@ import {
   FaRegHandshake,
 } from "react-icons/fa";
 
+// Reuse existing components (no logic duplication)
 import RevokeMintAuthority from "../components/RevokeMintAuthority";
 import RevokeFreezeAuthority from "../components/RevokeFreezeAuthority";
 import FreezeTokenAccount from "../components/FreezeTokenAccount";
@@ -90,6 +91,10 @@ export default function TokenDashboardMobile() {
     []
   );
 
+  // Outer outline stays clean; black fill cannot escape because overflow-hidden clips it
+  const surface = "rounded-2xl border border-[#1CEAB9]/40 overflow-hidden";
+  const surfaceInner = "bg-[#0B0E11] w-full h-full";
+
   const goHome = () => {
     setView("home");
     setActiveDetail(null);
@@ -121,25 +126,22 @@ export default function TokenDashboardMobile() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // A single, consistent “surface” style that won’t look like a slab outside borders
-  const surface =
-    "rounded-2xl border border-[#1CEAB9]/35 bg-black/35 shadow-[0_0_18px_rgba(28,234,185,0.10)]";
-
   return (
-    // IMPORTANT: do NOT force full-page black on mobile; let your global background show
     <div className="min-h-screen w-full bg-transparent overflow-x-hidden">
-      {/* pt-24 keeps fixed Sign In/Profile pill from overlapping */}
+      {/* pt-24 keeps fixed Sign In/Profile from overlapping */}
       <div className="mx-auto w-full max-w-[560px] px-4 pt-24 pb-24">
         {/* Header */}
-        <div className={`${surface} p-5 text-white`}>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl border border-[#1CEAB9]/30 bg-black/30 flex items-center justify-center">
-              <FaShieldAlt className="text-[#1CEAB9] text-xl" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xl font-bold leading-tight">Token Dashboard</div>
-              <div className="text-xs text-white/60 leading-snug mt-1">
-                Mobile view for authority actions + analytics.
+        <div className={surface}>
+          <div className={`${surfaceInner} p-5 text-white`}>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl border border-[#1CEAB9]/30 bg-black flex items-center justify-center">
+                <FaShieldAlt className="text-[#1CEAB9] text-xl" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xl font-bold leading-tight">Token Dashboard</div>
+                <div className="text-xs text-white/60 leading-snug mt-1">
+                  Mobile authority actions + analytics.
+                </div>
               </div>
             </div>
           </div>
@@ -148,38 +150,40 @@ export default function TokenDashboardMobile() {
         {/* HOME */}
         {view === "home" && (
           <div className="mt-4 space-y-4">
-            <div className={`${surface} p-5 text-white`}>
-              <div className="flex items-center gap-3">
-                <FaShieldAlt className="text-[#1CEAB9] text-lg" />
-                <div className="font-semibold">Authority Actions</div>
+            <div className={surface}>
+              <div className={`${surfaceInner} p-5 text-white`}>
+                <div className="flex items-center gap-3">
+                  <FaShieldAlt className="text-[#1CEAB9]" />
+                  <div className="font-semibold">Authority Actions</div>
+                </div>
+                <div className="mt-2 text-sm text-white/70 leading-snug">
+                  Revoke authorities, freeze/thaw accounts, set authority, manage delegates.
+                </div>
+                <button
+                  className="mt-4 w-full rounded-full border border-[#1CEAB9]/50 bg-transparent py-3 text-sm font-semibold text-white active:scale-[0.99]"
+                  onClick={openAuthorities}
+                >
+                  Manage Authorities
+                </button>
               </div>
-              <div className="mt-2 text-sm text-white/70 leading-snug">
-                Revoke authorities, freeze/thaw accounts, set authority, manage delegates.
-              </div>
-
-              <button
-                className="mt-4 w-full rounded-full border border-[#14b89c] bg-transparent py-3 text-sm font-semibold text-white active:scale-[0.99]"
-                onClick={openAuthorities}
-              >
-                Manage Authorities
-              </button>
             </div>
 
-            <div className={`${surface} p-5 text-white`}>
-              <div className="flex items-center gap-3">
-                <FaChartBar className="text-[#1CEAB9] text-lg" />
-                <div className="font-semibold">Token Analytics</div>
+            <div className={surface}>
+              <div className={`${surfaceInner} p-5 text-white`}>
+                <div className="flex items-center gap-3">
+                  <FaChartBar className="text-[#1CEAB9]" />
+                  <div className="font-semibold">Token Analytics</div>
+                </div>
+                <div className="mt-2 text-sm text-white/70 leading-snug">
+                  View analytics and performance data for your created tokens.
+                </div>
+                <button
+                  className="mt-4 w-full rounded-full border border-[#1CEAB9]/50 bg-transparent py-3 text-sm font-semibold text-white active:scale-[0.99]"
+                  onClick={openAnalytics}
+                >
+                  View Analytics
+                </button>
               </div>
-              <div className="mt-2 text-sm text-white/70 leading-snug">
-                View analytics and performance data of your created tokens.
-              </div>
-
-              <button
-                className="mt-4 w-full rounded-full border border-[#14b89c] bg-transparent py-3 text-sm font-semibold text-white active:scale-[0.99]"
-                onClick={openAnalytics}
-              >
-                Select Token to View Analytics
-              </button>
             </div>
           </div>
         )}
@@ -190,39 +194,66 @@ export default function TokenDashboardMobile() {
             <div className="flex items-center justify-between gap-3">
               <div className="text-white font-bold text-lg">Authority Actions</div>
               <button
-                className="shrink-0 text-xs font-semibold text-[#1CEAB9] px-3 py-2 rounded-full border border-[#1CEAB9]/40 bg-black/20"
+                className="shrink-0 text-xs font-semibold text-[#1CEAB9]"
                 onClick={goHome}
               >
                 Back
               </button>
             </div>
 
-            <div className={`${surface} mt-3 p-4 text-white`}>
-              <div className="text-xs text-white/60 mb-2">
-                Choose an action (shows one tool at a time).
-              </div>
+            <div className={`${surface} mt-3`}>
+              <div className={`${surfaceInner} p-4 text-white`}>
+                <div className="text-xs text-white/60 mb-2">
+                  Choose an action (shows one tool at a time).
+                </div>
 
-              <select
-                className="w-full rounded-xl bg-black/40 border border-[#1CEAB9]/25 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#1CEAB9]/40"
-                value={activeDetail || ""}
-                onChange={(e) => {
-                  const val = e.target.value || null;
-                  if (!val) return;
-                  openDetail(val);
-                }}
-              >
-                <option value="" disabled>
-                  Select an authority action…
-                </option>
-                {authorityOptions.map((opt) => (
-                  <option key={opt.key} value={opt.key}>
-                    {opt.title} — {opt.price}
+                <select
+                  className="w-full rounded-xl bg-black border border-[#1CEAB9]/40 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#1CEAB9]/40"
+                  value={activeDetail || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    openDetail(val);
+                  }}
+                >
+                  <option value="" disabled>
+                    Select an authority action…
                   </option>
-                ))}
-              </select>
+                  {authorityOptions.map((opt) => (
+                    <option key={opt.key} value={opt.key}>
+                      {opt.title} — {opt.price}
+                    </option>
+                  ))}
+                </select>
 
-              <div className="mt-3 text-[11px] text-white/45">
-                Tip: Open one action at a time so the screen stays clean.
+                {/* Optional: show compact preview list (still short) */}
+                <div className="mt-3 space-y-2">
+                  {authorityOptions.slice(0, 3).map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => openDetail(opt.key)}
+                      className="w-full text-left rounded-xl border border-white/10 bg-black/40 px-3 py-3 active:scale-[0.99]"
+                      type="button"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 shrink-0">{opt.icon}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="font-semibold text-sm break-words">
+                              {opt.title}
+                            </div>
+                            <div className="shrink-0 text-[11px] font-semibold text-[#1CEAB9] whitespace-nowrap">
+                              {opt.price}
+                            </div>
+                          </div>
+                          <div className="mt-1 text-xs text-white/60 overflow-hidden [display:-webkit-box] [-webkit-line-clamp:1] [-webkit-box-orient:vertical]">
+                            {opt.description}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -234,16 +265,17 @@ export default function TokenDashboardMobile() {
             <div className="flex items-center justify-between gap-3">
               <div className="text-white font-bold text-lg">Token Analytics</div>
               <button
-                className="shrink-0 text-xs font-semibold text-[#1CEAB9] px-3 py-2 rounded-full border border-[#1CEAB9]/40 bg-black/20"
+                className="shrink-0 text-xs font-semibold text-[#1CEAB9]"
                 onClick={goHome}
               >
                 Back
               </button>
             </div>
 
-            {/* Keep wrapper minimal; panel may already have its own styling */}
-            <div className={`${surface} mt-3 p-3`}>
-              <TokenAnalyticsPanel />
+            <div className={`${surface} mt-3`}>
+              <div className={`${surfaceInner} p-3`}>
+                <TokenAnalyticsPanel />
+              </div>
             </div>
           </div>
         )}
@@ -261,23 +293,37 @@ export default function TokenDashboardMobile() {
             <div className="flex items-center justify-between gap-3">
               <div className="text-white font-bold text-lg">Action</div>
               <button
-                className="shrink-0 text-xs font-semibold text-[#1CEAB9] px-3 py-2 rounded-full border border-[#1CEAB9]/40 bg-black/20"
+                className="shrink-0 text-xs font-semibold text-[#1CEAB9]"
                 onClick={backFromDetail}
               >
                 Back
               </button>
             </div>
 
-            {/* IMPORTANT: don’t add another heavy wrapper around components that already have one */}
+            {/* IMPORTANT: no extra heavy wrapper here (prevents double-box look) */}
             <div className="mt-3">
-              {activeDetail === "RevokeMintAuthority" && <RevokeMintAuthority onBack={backFromDetail} />}
-              {activeDetail === "RevokeFreezeAuthority" && <RevokeFreezeAuthority onBack={backFromDetail} />}
-              {activeDetail === "FreezeTokenAccount" && <FreezeTokenAccount onBack={backFromDetail} />}
-              {activeDetail === "ThawTokenAccount" && <ThawTokenAccount onBack={backFromDetail} />}
+              {activeDetail === "RevokeMintAuthority" && (
+                <RevokeMintAuthority onBack={backFromDetail} />
+              )}
+              {activeDetail === "RevokeFreezeAuthority" && (
+                <RevokeFreezeAuthority onBack={backFromDetail} />
+              )}
+              {activeDetail === "FreezeTokenAccount" && (
+                <FreezeTokenAccount onBack={backFromDetail} />
+              )}
+              {activeDetail === "ThawTokenAccount" && (
+                <ThawTokenAccount onBack={backFromDetail} />
+              )}
               {activeDetail === "SetAuthority" && <SetAuthority onBack={backFromDetail} />}
-              {activeDetail === "ApproveDelegate" && <ApproveDelegate onBack={backFromDetail} />}
-              {activeDetail === "RevokeDelegate" && <RevokeDelegate onBack={backFromDetail} />}
-              {activeDetail === "CloseTokenAccount" && <CloseTokenAccount onBack={backFromDetail} />}
+              {activeDetail === "ApproveDelegate" && (
+                <ApproveDelegate onBack={backFromDetail} />
+              )}
+              {activeDetail === "RevokeDelegate" && (
+                <RevokeDelegate onBack={backFromDetail} />
+              )}
+              {activeDetail === "CloseTokenAccount" && (
+                <CloseTokenAccount onBack={backFromDetail} />
+              )}
             </div>
           </div>
         )}
