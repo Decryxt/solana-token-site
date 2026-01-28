@@ -11,7 +11,6 @@ import {
   FaRegHandshake,
 } from "react-icons/fa";
 
-// Reuse existing components (no logic duplication)
 import RevokeMintAuthority from "../components/RevokeMintAuthority";
 import RevokeFreezeAuthority from "../components/RevokeFreezeAuthority";
 import FreezeTokenAccount from "../components/FreezeTokenAccount";
@@ -91,7 +90,7 @@ export default function TokenDashboardMobile() {
     []
   );
 
-  // Outer outline stays clean; black fill cannot escape because overflow-hidden clips it
+  // clean border + guaranteed contained black fill
   const surface = "rounded-2xl border border-[#1CEAB9]/40 overflow-hidden";
   const surfaceInner = "bg-[#0B0E11] w-full h-full";
 
@@ -128,19 +127,18 @@ export default function TokenDashboardMobile() {
 
   return (
     <div className="min-h-screen w-full bg-transparent overflow-x-hidden">
-      {/* pt-24 keeps fixed Sign In/Profile from overlapping */}
       <div className="mx-auto w-full max-w-[560px] px-4 pt-24 pb-24">
-        {/* Header */}
+        {/* HEADER */}
         <div className={surface}>
           <div className={`${surfaceInner} p-5 text-white`}>
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl border border-[#1CEAB9]/30 bg-black flex items-center justify-center">
                 <FaShieldAlt className="text-[#1CEAB9] text-xl" />
               </div>
-              <div className="min-w-0">
-                <div className="text-xl font-bold leading-tight">Token Dashboard</div>
-                <div className="text-xs text-white/60 leading-snug mt-1">
-                  Mobile authority actions + analytics.
+              <div>
+                <div className="text-xl font-bold">Token Dashboard</div>
+                <div className="text-xs text-white/60 mt-1">
+                  Mobile authority actions + analytics
                 </div>
               </div>
             </div>
@@ -156,12 +154,12 @@ export default function TokenDashboardMobile() {
                   <FaShieldAlt className="text-[#1CEAB9]" />
                   <div className="font-semibold">Authority Actions</div>
                 </div>
-                <div className="mt-2 text-sm text-white/70 leading-snug">
+                <p className="text-sm text-white/70 mt-2">
                   Revoke authorities, freeze/thaw accounts, set authority, manage delegates.
-                </div>
+                </p>
                 <button
-                  className="mt-4 w-full rounded-full border border-[#1CEAB9]/50 bg-transparent py-3 text-sm font-semibold text-white active:scale-[0.99]"
                   onClick={openAuthorities}
+                  className="mt-4 w-full rounded-full border border-[#1CEAB9]/50 py-3 text-sm font-semibold"
                 >
                   Manage Authorities
                 </button>
@@ -174,12 +172,12 @@ export default function TokenDashboardMobile() {
                   <FaChartBar className="text-[#1CEAB9]" />
                   <div className="font-semibold">Token Analytics</div>
                 </div>
-                <div className="mt-2 text-sm text-white/70 leading-snug">
-                  View analytics and performance data for your created tokens.
-                </div>
+                <p className="text-sm text-white/70 mt-2">
+                  View analytics and performance data for your tokens.
+                </p>
                 <button
-                  className="mt-4 w-full rounded-full border border-[#1CEAB9]/50 bg-transparent py-3 text-sm font-semibold text-white active:scale-[0.99]"
                   onClick={openAnalytics}
+                  className="mt-4 w-full rounded-full border border-[#1CEAB9]/50 py-3 text-sm font-semibold"
                 >
                   View Analytics
                 </button>
@@ -188,33 +186,22 @@ export default function TokenDashboardMobile() {
           </div>
         )}
 
-        {/* AUTHORITIES (dropdown to keep it short) */}
+        {/* AUTHORITIES — DROPDOWN ONLY */}
         {view === "authorities" && (
           <div className="mt-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-white font-bold text-lg">Authority Actions</div>
-              <button
-                className="shrink-0 text-xs font-semibold text-[#1CEAB9]"
-                onClick={goHome}
-              >
+            <div className="flex justify-between mb-2">
+              <div className="font-bold text-white">Authority Actions</div>
+              <button onClick={goHome} className="text-xs text-[#1CEAB9]">
                 Back
               </button>
             </div>
 
-            <div className={`${surface} mt-3`}>
-              <div className={`${surfaceInner} p-4 text-white`}>
-                <div className="text-xs text-white/60 mb-2">
-                  Choose an action (shows one tool at a time).
-                </div>
-
+            <div className={surface}>
+              <div className={`${surfaceInner} p-4`}>
                 <select
-                  className="w-full rounded-xl bg-black border border-[#1CEAB9]/40 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#1CEAB9]/40"
+                  className="w-full rounded-xl bg-black border border-[#1CEAB9]/40 px-3 py-3 text-sm text-white"
                   value={activeDetail || ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (!val) return;
-                    openDetail(val);
-                  }}
+                  onChange={(e) => openDetail(e.target.value)}
                 >
                   <option value="" disabled>
                     Select an authority action…
@@ -225,35 +212,6 @@ export default function TokenDashboardMobile() {
                     </option>
                   ))}
                 </select>
-
-                {/* Optional: show compact preview list (still short) */}
-                <div className="mt-3 space-y-2">
-                  {authorityOptions.slice(0, 3).map((opt) => (
-                    <button
-                      key={opt.key}
-                      onClick={() => openDetail(opt.key)}
-                      className="w-full text-left rounded-xl border border-white/10 bg-black/40 px-3 py-3 active:scale-[0.99]"
-                      type="button"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 shrink-0">{opt.icon}</div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="font-semibold text-sm break-words">
-                              {opt.title}
-                            </div>
-                            <div className="shrink-0 text-[11px] font-semibold text-[#1CEAB9] whitespace-nowrap">
-                              {opt.price}
-                            </div>
-                          </div>
-                          <div className="mt-1 text-xs text-white/60 overflow-hidden [display:-webkit-box] [-webkit-line-clamp:1] [-webkit-box-orient:vertical]">
-                            {opt.description}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
@@ -262,17 +220,14 @@ export default function TokenDashboardMobile() {
         {/* ANALYTICS */}
         {view === "analytics" && (
           <div className="mt-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-white font-bold text-lg">Token Analytics</div>
-              <button
-                className="shrink-0 text-xs font-semibold text-[#1CEAB9]"
-                onClick={goHome}
-              >
+            <div className="flex justify-between mb-2">
+              <div className="font-bold text-white">Token Analytics</div>
+              <button onClick={goHome} className="text-xs text-[#1CEAB9]">
                 Back
               </button>
             </div>
 
-            <div className={`${surface} mt-3`}>
+            <div className={surface}>
               <div className={`${surfaceInner} p-3`}>
                 <TokenAnalyticsPanel />
               </div>
@@ -281,27 +236,19 @@ export default function TokenDashboardMobile() {
         )}
 
         {/* PROMO */}
-        {view === "promo" && (
-          <div className="mt-4">
-            <AuthPromoCard onBack={goHome} />
-          </div>
-        )}
+        {view === "promo" && <AuthPromoCard onBack={goHome} />}
 
         {/* DETAIL */}
         {view === "detail" && (
           <div className="mt-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-white font-bold text-lg">Action</div>
-              <button
-                className="shrink-0 text-xs font-semibold text-[#1CEAB9]"
-                onClick={backFromDetail}
-              >
+            <div className="flex justify-between mb-2">
+              <div className="font-bold text-white">Action</div>
+              <button onClick={backFromDetail} className="text-xs text-[#1CEAB9]">
                 Back
               </button>
             </div>
 
-            {/* IMPORTANT: no extra heavy wrapper here (prevents double-box look) */}
-            <div className="mt-3">
+            <div>
               {activeDetail === "RevokeMintAuthority" && (
                 <RevokeMintAuthority onBack={backFromDetail} />
               )}
