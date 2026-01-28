@@ -1,8 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaBan, FaArrowLeft } from "react-icons/fa";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { SystemProgram, LAMPORTS_PER_SOL, PublicKey, Transaction } from "@solana/web3.js";
-import { getConnection } from "../utils/solana";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import {
+  SystemProgram,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  Transaction,
+} from "@solana/web3.js";
+
 import {
   AuthorityType,
   TOKEN_PROGRAM_ID,
@@ -11,9 +16,19 @@ import {
   getMint,
 } from "@solana/spl-token";
 
+function withTimeout(promise, ms, label = "Request") {
+  let t;
+  const timeout = new Promise((_, reject) => {
+    t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
+}
+
 export default function RevokeMintAuthorityMobile({ onBack }) {
   const { publicKey, sendTransaction, connected } = useWallet();
-  const connection = getConnection();
+
+  // ✅ Use the same connection your app is already providing
+  const { connection } = useConnection();
 
   const REVOKE_MINT_FEE_SOL = 0.04;
 
@@ -22,15 +37,17 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
   const [selectedMint, setSelectedMint] = useState("");
   const [loadingTokens, setLoadingTokens] = useState(false);
   const [processing, setProcessing] = useState(false);
-
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    let isMounted = true;
+    let alive = true;
 
     async function fetchTokens() {
       if (!publicKey) {
-        if (isMounted) setTokenAccounts([]);
+        if (alive) {
+          setTokenAccounts([]);
+          setLoadingTokens(false);
+        }
         return;
       }
 
@@ -38,11 +55,19 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
       setStatus("");
 
       try {
-        // ✅ Support both classic SPL + Token-2022 token accounts
-        const [classic, t22] = await Promise.all([
-          connection.getParsedTokenAccountsByOwner(publicKey, { programId: TOKEN_PROGRAM_ID }),
-          connection.getParsedTokenAccountsByOwner(publicKey, { programId: TOKEN_2022_PROGRAM_ID }),
-        ]);
+        // ✅ Timeout prevents infinite "Loading..." if RPC hangs on mobile
+        const [classic, t22] = await withTimeout(
+          Promise.all([
+            connection.getParsedTokenAccountsByOwner(publicKey, {
+              programId: TOKEN_PROGRAM_ID,
+            }),
+            connection.getParsedTokenAccountsByOwner(publicKey, {
+              programId: TOKEN_2022_PROGRAM_ID,
+            }),
+          ]),
+          12000,
+          "Fetching token accounts"
+        );
 
         const parse = (resp, programId) =>
           resp.value
@@ -57,28 +82,36 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
               programId,
             }));
 
-        const combined = [...parse(classic, TOKEN_PROGRAM_ID), ...parse(t22, TOKEN_2022_PROGRAM_ID)];
+        const combined = [
+          ...parse(classic, TOKEN_PROGRAM_ID),
+          ...parse(t22, TOKEN_2022_PROGRAM_ID),
+        ];
 
-        // De-dupe by mint, prefer the larger balance if duplicated (rare)
+        // De-dupe by mint (keep higher balance if duplicated)
         const byMint = new Map();
         for (const t of combined) {
           const prev = byMint.get(t.mint);
           if (!prev || (t.amount ?? 0) > (prev.amount ?? 0)) byMint.set(t.mint, t);
         }
 
-        if (isMounted) setTokenAccounts(Array.from(byMint.values()));
+        if (alive) setTokenAccounts(Array.from(byMint.values()));
       } catch (err) {
         console.error("Error fetching tokens:", err);
-        if (isMounted) setTokenAccounts([]);
-        setStatus("Failed to fetch tokens. Check your connection and wallet.");
+        if (alive) {
+          setTokenAccounts([]);
+          setStatus(
+            `Failed to load tokens.\n${err?.message || "Unknown error"}`
+          );
+        }
       } finally {
-        if (isMounted) setLoadingTokens(false);
+        if (alive) setLoadingTokens(false);
       }
     }
 
     fetchTokens();
+
     return () => {
-      isMounted = false;
+      alive = false;
     };
   }, [publicKey, connection]);
 
@@ -97,19 +130,13 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
   const surfaceInner = "bg-[#0B0E11] w-full h-full";
   const field =
     "w-full rounded-xl bg-black/40 border border-[#1CEAB9]/30 px-3 py-3 text-sm text-white placeholder:text-white/40 outline-none focus:border-[#1CEAB9]/70";
-
   const button =
     "w-full rounded-xl border border-[#1CEAB9]/60 py-3 text-sm font-semibold text-white hover:border-[#1CEAB9]/90 disabled:opacity-60 disabled:cursor-not-allowed";
 
   const handleConfirm = async () => {
-    if (!selectedMint) {
-      alert("Please select a token mint address.");
-      return;
-    }
-    if (!publicKey || !sendTransaction || !connected) {
-      alert("Please connect your wallet.");
-      return;
-    }
+    if (!selectedMint) return alert("Please select a token mint address.");
+    if (!publicKey || !sendTransaction || !connected)
+      return alert("Please connect your wallet.");
 
     try {
       setProcessing(true);
@@ -117,22 +144,23 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
 
       const mintPubkey = new PublicKey(selectedMint);
 
-      // ✅ Detect which token program this mint belongs to (classic vs 2022)
+      // Use detected program id if we have it
       const programId = selectedToken?.programId || TOKEN_PROGRAM_ID;
 
-      // ✅ Token-2022 requires passing TOKEN_2022_PROGRAM_ID to getMint + instructions
-      const mintInfo = await getMint(connection, mintPubkey, "confirmed", programId);
+      const mintInfo = await withTimeout(
+        getMint(connection, mintPubkey, "confirmed", programId),
+        12000,
+        "Fetching mint info"
+      );
 
       if (!mintInfo.mintAuthority) {
-        alert("Mint authority is already revoked.");
         setStatus("Mint authority already revoked.");
-        return;
+        return alert("Mint authority is already revoked.");
       }
 
       if (mintInfo.mintAuthority.toBase58() !== publicKey.toBase58()) {
-        alert("Your connected wallet is NOT the mint authority of this token.");
         setStatus("Connected wallet is not mint authority.");
-        return;
+        return alert("Your connected wallet is NOT the mint authority of this token.");
       }
 
       setStatus("Building transaction...");
@@ -142,29 +170,25 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
         publicKey,
         AuthorityType.MintTokens,
         null,
-        [], // multiSigners
+        [],
         programId
       );
 
       const treasuryStr = import.meta.env.VITE_ORIGINFI_TREASURY;
-      if (!treasuryStr) throw new Error("Treasury wallet not configured (VITE_ORIGINFI_TREASURY).");
+      if (!treasuryStr)
+        throw new Error("Treasury wallet not configured (VITE_ORIGINFI_TREASURY).");
       const treasuryPubkey = new PublicKey(treasuryStr);
 
       const feeLamports = Math.round(REVOKE_MINT_FEE_SOL * LAMPORTS_PER_SOL);
 
-      const tx = new Transaction();
-
-      // 1) Pay fee
-      tx.add(
+      const tx = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: treasuryPubkey,
           lamports: feeLamports,
-        })
+        }),
+        ixRevoke
       );
-
-      // 2) Revoke
-      tx.add(ixRevoke);
 
       setStatus("Requesting wallet approval...");
       const sig = await sendTransaction(tx, connection);
@@ -179,8 +203,9 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
       setSearchTerm("");
     } catch (err) {
       console.error(err);
-      alert("Error revoking mint authority: " + (err?.message || String(err)));
-      setStatus("Failed: " + (err?.message || String(err)));
+      const msg = err?.message || String(err);
+      alert("Error revoking mint authority: " + msg);
+      setStatus("Failed: " + msg);
     } finally {
       setProcessing(false);
     }
@@ -208,15 +233,20 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
                 <FaBan className="text-[#1CEAB9] text-xl" />
               </div>
               <div className="text-right">
-                <div className="text-lg font-bold leading-tight">Revoke Mint Authority</div>
-                <div className="text-xs text-white/60">Estimated cost: ~0.04 SOL</div>
+                <div className="text-lg font-bold leading-tight">
+                  Revoke Mint Authority
+                </div>
+                <div className="text-xs text-white/60">
+                  Estimated cost: ~0.04 SOL
+                </div>
               </div>
             </div>
           </div>
 
           <div className="mt-3 text-sm text-white/75">
             Permanently disables future minting by setting mint authority to{" "}
-            <span className="text-white font-semibold">null</span>. Only the current mint authority can do this.
+            <span className="text-white font-semibold">null</span>. Only the
+            current mint authority can do this.
           </div>
         </div>
       </div>
@@ -249,7 +279,8 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
               {filteredTokens.length > 0 ? (
                 filteredTokens.map((t) => (
                   <option key={t.mint} value={t.mint}>
-                    {t.mint} (Bal: {t.amount}) {t.programId === TOKEN_2022_PROGRAM_ID ? "— Token-2022" : ""}
+                    {t.mint} (Bal: {t.amount}){" "}
+                    {t.programId === TOKEN_2022_PROGRAM_ID ? "— Token-2022" : ""}
                   </option>
                 ))
               ) : (
@@ -266,7 +297,9 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
                 <div className="mt-1">
                   <span className="text-white/50">Program:</span>{" "}
                   <span className="text-white">
-                    {selectedToken.programId === TOKEN_2022_PROGRAM_ID ? "Token-2022" : "Classic SPL"}
+                    {selectedToken.programId === TOKEN_2022_PROGRAM_ID
+                      ? "Token-2022"
+                      : "Classic SPL"}
                   </span>
                 </div>
               </div>
