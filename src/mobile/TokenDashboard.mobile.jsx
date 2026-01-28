@@ -11,7 +11,6 @@ import {
   FaRegHandshake,
 } from "react-icons/fa";
 
-// Reuse existing components (no logic duplication)
 import RevokeMintAuthority from "../components/RevokeMintAuthority";
 import RevokeFreezeAuthority from "../components/RevokeFreezeAuthority";
 import FreezeTokenAccount from "../components/FreezeTokenAccount";
@@ -122,14 +121,19 @@ export default function TokenDashboardMobile() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // A single, consistent “surface” style that won’t look like a slab outside borders
+  const surface =
+    "rounded-2xl border border-[#1CEAB9]/35 bg-black/35 shadow-[0_0_18px_rgba(28,234,185,0.10)]";
+
   return (
-    <div className="min-h-screen w-full bg-[#0B0E11] overflow-x-hidden">
-      {/* pt-20 keeps the fixed Sign In/Profile pill from overlapping */}
-      <div className="mx-auto w-full max-w-[560px] px-4 pt-20 pb-24">
+    // IMPORTANT: do NOT force full-page black on mobile; let your global background show
+    <div className="min-h-screen w-full bg-transparent overflow-x-hidden">
+      {/* pt-24 keeps fixed Sign In/Profile pill from overlapping */}
+      <div className="mx-auto w-full max-w-[560px] px-4 pt-24 pb-24">
         {/* Header */}
-        <div className="rounded-2xl border border-[#1CEAB9]/40 bg-white/[0.02] backdrop-blur-md shadow-[0_0_18px_rgba(28,234,185,0.10)] p-5 text-white">
+        <div className={`${surface} p-5 text-white`}>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl border border-[#1CEAB9]/30 bg-white/[0.02] flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl border border-[#1CEAB9]/30 bg-black/30 flex items-center justify-center">
               <FaShieldAlt className="text-[#1CEAB9] text-xl" />
             </div>
             <div className="min-w-0">
@@ -144,7 +148,7 @@ export default function TokenDashboardMobile() {
         {/* HOME */}
         {view === "home" && (
           <div className="mt-4 space-y-4">
-            <div className="mt-6">
+            <div className={`${surface} p-5 text-white`}>
               <div className="flex items-center gap-3">
                 <FaShieldAlt className="text-[#1CEAB9] text-lg" />
                 <div className="font-semibold">Authority Actions</div>
@@ -161,13 +165,13 @@ export default function TokenDashboardMobile() {
               </button>
             </div>
 
-            <div className="mt-6">
+            <div className={`${surface} p-5 text-white`}>
               <div className="flex items-center gap-3">
                 <FaChartBar className="text-[#1CEAB9] text-lg" />
                 <div className="font-semibold">Token Analytics</div>
               </div>
               <div className="mt-2 text-sm text-white/70 leading-snug">
-                View analytics and performance data for your created tokens.
+                View analytics and performance data of your created tokens.
               </div>
 
               <button
@@ -180,26 +184,26 @@ export default function TokenDashboardMobile() {
           </div>
         )}
 
-        {/* AUTHORITIES (dropdown instead of long list) */}
+        {/* AUTHORITIES (dropdown to keep it short) */}
         {view === "authorities" && (
           <div className="mt-4">
             <div className="flex items-center justify-between gap-3">
               <div className="text-white font-bold text-lg">Authority Actions</div>
               <button
-                className="shrink-0 text-xs font-semibold text-[#1CEAB9] px-3 py-2 rounded-full border border-[#1CEAB9]/40"
+                className="shrink-0 text-xs font-semibold text-[#1CEAB9] px-3 py-2 rounded-full border border-[#1CEAB9]/40 bg-black/20"
                 onClick={goHome}
               >
                 Back
               </button>
             </div>
 
-            <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-md p-4 text-white">
+            <div className={`${surface} mt-3 p-4 text-white`}>
               <div className="text-xs text-white/60 mb-2">
                 Choose an action (shows one tool at a time).
               </div>
 
               <select
-                className="w-full rounded-xl bg-[#0B0E11] border border-[#1CEAB9]/25 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#1CEAB9]/40"
+                className="w-full rounded-xl bg-black/40 border border-[#1CEAB9]/25 px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#1CEAB9]/40"
                 value={activeDetail || ""}
                 onChange={(e) => {
                   const val = e.target.value || null;
@@ -217,30 +221,8 @@ export default function TokenDashboardMobile() {
                 ))}
               </select>
 
-              {/* Compact quick picks */}
-              <div className="mt-3 grid grid-cols-1 gap-2">
-                {authorityOptions.slice(0, 3).map((opt) => (
-                  <button
-                    key={opt.key}
-                    onClick={() => openDetail(opt.key)}
-                    className="w-full text-left rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white active:scale-[0.99]"
-                    type="button"
-                  >
-                    <div className="flex items-center justify-between gap-2 min-w-0">
-                      <span className="font-semibold break-words">{opt.title}</span>
-                      <span className="text-[11px] font-semibold text-[#14b89c] whitespace-nowrap">
-                        {opt.price}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-xs text-white/60 overflow-hidden [display:-webkit-box] [-webkit-line-clamp:1] [-webkit-box-orient:vertical]">
-                      {opt.description}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
               <div className="mt-3 text-[11px] text-white/45">
-                Tip: When you open an action, this page stays clean and short.
+                Tip: Open one action at a time so the screen stays clean.
               </div>
             </div>
           </div>
@@ -252,15 +234,15 @@ export default function TokenDashboardMobile() {
             <div className="flex items-center justify-between gap-3">
               <div className="text-white font-bold text-lg">Token Analytics</div>
               <button
-                className="shrink-0 text-xs font-semibold text-[#1CEAB9] px-3 py-2 rounded-full border border-[#1CEAB9]/40"
+                className="shrink-0 text-xs font-semibold text-[#1CEAB9] px-3 py-2 rounded-full border border-[#1CEAB9]/40 bg-black/20"
                 onClick={goHome}
               >
                 Back
               </button>
             </div>
 
-            {/* Keep wrapper light so the panel doesn't feel "double boxed" */}
-            <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.015] backdrop-blur-md p-2">
+            {/* Keep wrapper minimal; panel may already have its own styling */}
+            <div className={`${surface} mt-3 p-3`}>
               <TokenAnalyticsPanel />
             </div>
           </div>
@@ -273,20 +255,21 @@ export default function TokenDashboardMobile() {
           </div>
         )}
 
-        {/* DETAIL (render only the tool; keep outer wrapper minimal) */}
+        {/* DETAIL */}
         {view === "detail" && (
           <div className="mt-4">
             <div className="flex items-center justify-between gap-3">
               <div className="text-white font-bold text-lg">Action</div>
               <button
-                className="shrink-0 text-xs font-semibold text-[#1CEAB9] px-3 py-2 rounded-full border border-[#1CEAB9]/40"
+                className="shrink-0 text-xs font-semibold text-[#1CEAB9] px-3 py-2 rounded-full border border-[#1CEAB9]/40 bg-black/20"
                 onClick={backFromDetail}
               >
                 Back
               </button>
             </div>
 
-            <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.015] backdrop-blur-md p-2">
+            {/* IMPORTANT: don’t add another heavy wrapper around components that already have one */}
+            <div className="mt-3">
               {activeDetail === "RevokeMintAuthority" && <RevokeMintAuthority onBack={backFromDetail} />}
               {activeDetail === "RevokeFreezeAuthority" && <RevokeFreezeAuthority onBack={backFromDetail} />}
               {activeDetail === "FreezeTokenAccount" && <FreezeTokenAccount onBack={backFromDetail} />}
