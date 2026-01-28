@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import useIsMobile from "./hooks/useIsMobile";
 import TokenDashboardMobile from "./mobile/TokenDashboard.mobile";
+import TokenCreationFormMobile from "./mobile/TokenCreationForm.mobile";
 
 import {
   ConnectionProvider,
@@ -374,11 +375,15 @@ export default function App() {
 
               {page === "create" && (() => {
                 const token = localStorage.getItem("originfi_jwt");
-                const mode = localStorage.getItem("originfi_session_mode"); // "guest" allowed
+                const mode = localStorage.getItem("originfi_session_mode");
 
-                // If not logged in AND they didn't choose guest, force the choice screen
                 if (!token && mode !== "guest") {
                   return <CreateChoice setPage={setPage} />;
+                }
+
+                // ✅ THIS is the missing piece
+                if (isMobile) {
+                  return <TokenCreationFormMobile onBack={() => setPage("home")} />;
                 }
 
                 return <TokenCreationForm />;
