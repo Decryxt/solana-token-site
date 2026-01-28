@@ -1,6 +1,16 @@
+// src/mobile/TokenCreationForm.mobile.jsx
+
 import React, { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { FaTimes, FaCheckCircle, FaRegCircle, FaSpinner, FaCopy, FaExternalLinkAlt } from "react-icons/fa";
+import {
+  FaTimes,
+  FaCheckCircle,
+  FaRegCircle,
+  FaSpinner,
+  FaCopy,
+  FaExternalLinkAlt,
+} from "react-icons/fa";
+
 import { mintTokenShared } from "../utils/mintToken.mobile";
 
 export default function TokenCreationFormMobile({ onBack }) {
@@ -38,9 +48,10 @@ export default function TokenCreationFormMobile({ onBack }) {
           imageFile: files[0],
         }));
       }
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      return;
     }
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -57,19 +68,22 @@ export default function TokenCreationFormMobile({ onBack }) {
         onStatus: setStatusMessage,
       });
 
-      // Keep the same UX pattern: alert after success (optional)
-      // If you want NO alert on mobile, remove these.
-      const last = String(status || "");
-      const mint = (last.match(/Mint:\s*([A-Za-z0-9]{32,})/i) || [])[1] || "";
-      alert(`Token minted.\nMint: ${mint || "See console"}\n`);
+      // Optional success alert (kept minimal)
+      alert("Token minted. See Mint Console for receipt.");
     } catch (err) {
       console.error("Mobile mint flow error:", err);
-      setStatusMessage(err?.message || "Unexpected error while creating token. Check console.");
-      alert(err?.message || "Unexpected error while creating token. Check console.");
+      const msg = err?.message || "Unexpected error while creating token. Check console.";
+      setStatusMessage(msg);
+      alert(msg);
     } finally {
       setLoading(false);
     }
   };
+
+  // Shared input styling (visual-only changes; layout unchanged)
+  const fieldClass =
+    "w-full rounded-xl border border-[#1CEAB9]/25 bg-black/30 px-3 py-3 text-sm text-white placeholder:text-white/40 outline-none focus:border-[#1CEAB9]/70";
+  const panelClass = "rounded-xl border border-[#1CEAB9]/20 bg-black/20";
 
   return (
     <div className="w-full px-4 pb-24 pt-4">
@@ -77,14 +91,14 @@ export default function TokenCreationFormMobile({ onBack }) {
       <div className="mb-4 flex items-center justify-between">
         <button
           onClick={onBack}
-          className="rounded-xl border border-[#1CEAB9]/40 px-3 py-2 text-sm text-white hover:border-[#1CEAB9]/70"
+          className="rounded-xl border border-[#1CEAB9]/45 px-3 py-2 text-sm text-white hover:border-[#1CEAB9]/80"
         >
           Back
         </button>
 
         <div className="text-center">
           <div className="text-base font-semibold text-white">Token Creation</div>
-          <div className="text-xs text-white/50">Mobile</div>
+          <div className="text-xs text-white/55">Mobile</div>
         </div>
 
         <div className="w-[64px]" />
@@ -103,12 +117,13 @@ export default function TokenCreationFormMobile({ onBack }) {
                 required
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none focus:border-[#1CEAB9]/60"
+                className={fieldClass}
               />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Symbol">
+                {/* ✅ Fixed: visible text + safe typing (no synthetic events) */}
                 <input
                   name="symbol"
                   type="text"
@@ -116,12 +131,12 @@ export default function TokenCreationFormMobile({ onBack }) {
                   required
                   value={formData.symbol}
                   onChange={(e) =>
-                    handleChange({
-                      ...e,
-                      target: { ...e.target, value: e.target.value.toUpperCase() },
-                    })
+                    setFormData((prev) => ({
+                      ...prev,
+                      symbol: e.target.value.toUpperCase(),
+                    }))
                   }
-                  className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none focus:border-[#1CEAB9]/60"
+                  className={fieldClass}
                 />
               </Field>
 
@@ -133,7 +148,7 @@ export default function TokenCreationFormMobile({ onBack }) {
                   max="18"
                   value={formData.decimals}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none focus:border-[#1CEAB9]/60"
+                  className={fieldClass}
                 />
               </Field>
             </div>
@@ -146,7 +161,7 @@ export default function TokenCreationFormMobile({ onBack }) {
                 required
                 value={formData.supply}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none focus:border-[#1CEAB9]/60"
+                className={fieldClass}
               />
             </Field>
 
@@ -157,14 +172,14 @@ export default function TokenCreationFormMobile({ onBack }) {
                 value={formData.description}
                 onChange={handleChange}
                 rows={5}
-                className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none focus:border-[#1CEAB9]/60"
+                className={`${fieldClass} resize-none`}
               />
             </Field>
 
             <Field label="Logo (tap to upload)">
               <label
                 htmlFor="imageFileInputMobile"
-                className="cursor-pointer w-full rounded-xl border border-white/10 bg-black/20 p-3 flex items-center justify-center"
+                className={`cursor-pointer w-full ${panelClass} p-3 flex items-center justify-center hover:border-[#1CEAB9]/35`}
               >
                 {formData.imageURI ? (
                   <img
@@ -173,7 +188,7 @@ export default function TokenCreationFormMobile({ onBack }) {
                     className="max-h-28 object-contain rounded"
                   />
                 ) : (
-                  <span className="text-sm text-white/70">Tap to select logo image</span>
+                  <span className="text-sm text-white/75">Tap to select logo image</span>
                 )}
 
                 <input
@@ -187,7 +202,7 @@ export default function TokenCreationFormMobile({ onBack }) {
               </label>
             </Field>
 
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className={`${panelClass} p-3`}>
               <label className="flex items-start gap-3">
                 <input
                   type="checkbox"
@@ -201,8 +216,8 @@ export default function TokenCreationFormMobile({ onBack }) {
                   className="mt-1"
                 />
                 <div>
-                  <div className="text-sm font-semibold">Make metadata immutable</div>
-                  <div className="text-xs text-white/50 mt-1">
+                  <div className="text-sm font-semibold text-white">Make metadata immutable</div>
+                  <div className="text-xs text-white/55 mt-1">
                     Locks name, symbol, image, and description permanently. Irreversible.
                   </div>
                 </div>
@@ -212,7 +227,12 @@ export default function TokenCreationFormMobile({ onBack }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl border border-[#1CEAB9]/50 py-3 text-sm font-semibold text-white hover:border-[#1CEAB9]/80 disabled:opacity-60"
+              className="
+                w-full rounded-xl border border-[#1CEAB9]/60 py-3 text-sm font-semibold text-white
+                hover:border-[#1CEAB9]/90
+                hover:shadow-[0_0_18px_rgba(28,234,185,0.25)]
+                disabled:opacity-60
+              "
             >
               {loading ? "Creating Token..." : "Mint Token / Estimated 0.05 SOL"}
             </button>
@@ -220,7 +240,7 @@ export default function TokenCreationFormMobile({ onBack }) {
         </div>
       </div>
 
-      {/* Status modal (no backdrop-blur; clean) */}
+      {/* Status modal (no backdrop-blur) */}
       {statusOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <button
@@ -236,7 +256,7 @@ export default function TokenCreationFormMobile({ onBack }) {
               <div className="px-4 py-4 border-b border-white/10 flex items-start justify-between">
                 <div>
                   <div className="text-base font-semibold">Mint Console</div>
-                  <div className="text-xs text-white/50 mt-1">Live progress + receipt</div>
+                  <div className="text-xs text-white/55 mt-1">Live progress + receipt</div>
                 </div>
 
                 <button
@@ -244,7 +264,7 @@ export default function TokenCreationFormMobile({ onBack }) {
                   aria-label="Close"
                   onClick={() => setStatusOpen(false)}
                   disabled={loading}
-                  className="h-9 w-9 grid place-items-center rounded-full border border-white/10 bg-black/30 hover:border-[#1CEAB9]/40 disabled:opacity-40"
+                  className="h-9 w-9 grid place-items-center rounded-full border border-[#1CEAB9]/20 bg-black/30 hover:border-[#1CEAB9]/45 disabled:opacity-40"
                 >
                   <FaTimes />
                 </button>
@@ -253,14 +273,14 @@ export default function TokenCreationFormMobile({ onBack }) {
               <StatusBody status={status} loading={loading} />
 
               <div className="px-4 py-4 border-t border-white/10 flex items-center justify-between">
-                <div className="text-xs text-white/50">
+                <div className="text-xs text-white/55">
                   {loading ? "Minting in progress…" : "Ready."}
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setStatusOpen(false)}
-                  className="h-10 px-4 rounded-xl border border-white/10 bg-black/30 text-sm hover:border-[#1CEAB9]/40"
+                  className="h-10 px-4 rounded-xl border border-[#1CEAB9]/25 bg-black/30 text-sm hover:border-[#1CEAB9]/45"
                 >
                   Close
                 </button>
@@ -276,7 +296,7 @@ export default function TokenCreationFormMobile({ onBack }) {
 function Field({ label, children }) {
   return (
     <div className="space-y-1">
-      <div className="text-xs font-semibold text-white/80">{label}</div>
+      <div className="text-xs font-semibold text-white/75">{label}</div>
       {children}
     </div>
   );
@@ -318,8 +338,9 @@ function StatusBody({ status, loading }) {
 
   return (
     <div className="px-4 py-4 space-y-4">
-      <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-        <div className="text-sm font-semibold">Progress</div>
+      <div className="rounded-xl border border-[#1CEAB9]/20 bg-black/20 p-3">
+        <div className="text-sm font-semibold text-white">Progress</div>
+
         <div className="mt-3 space-y-2">
           {steps.map((st, i) => {
             const completed = i < currentIdx || (isDone && i <= currentIdx);
@@ -347,12 +368,22 @@ function StatusBody({ status, loading }) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-3">
-        <div className="text-sm font-semibold">Receipt</div>
+      <div className="rounded-xl border border-[#1CEAB9]/20 bg-black/20 p-3 space-y-3">
+        <div className="text-sm font-semibold text-white">Receipt</div>
 
-        <KV k="Mint" v={mint || "—"} onCopy={mint ? () => copy(mint) : null} explorer={explorerMintUrl} />
+        <KV
+          k="Mint"
+          v={mint || "—"}
+          onCopy={mint ? () => copy(mint) : null}
+          explorer={explorerMintUrl}
+        />
         <KV k="ATA" v={ata || "—"} onCopy={ata ? () => copy(ata) : null} />
-        <KV k="Tx" v={tx || "—"} onCopy={tx ? () => copy(tx) : null} explorer={explorerTxUrl} />
+        <KV
+          k="Tx"
+          v={tx || "—"}
+          onCopy={tx ? () => copy(tx) : null}
+          explorer={explorerTxUrl}
+        />
       </div>
     </div>
   );
@@ -361,15 +392,18 @@ function StatusBody({ status, loading }) {
 function KV({ k, v, onCopy, explorer }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <div className="text-xs text-white/40">{k}</div>
+      <div className="text-xs text-white/45">{k}</div>
+
       <div className="flex items-center gap-2">
-        <div className="max-w-[210px] break-all text-right text-xs text-white/80">{v}</div>
+        <div className="max-w-[210px] break-all text-right text-xs text-white/85">
+          {v}
+        </div>
 
         {onCopy && (
           <button
             type="button"
             onClick={onCopy}
-            className="h-8 px-2 rounded-lg border border-white/10 bg-black/30 text-xs hover:border-[#1CEAB9]/40"
+            className="h-8 px-2 rounded-lg border border-[#1CEAB9]/20 bg-black/30 text-xs hover:border-[#1CEAB9]/45"
             title="Copy"
           >
             <FaCopy />
@@ -381,7 +415,7 @@ function KV({ k, v, onCopy, explorer }) {
             href={explorer}
             target="_blank"
             rel="noreferrer"
-            className="h-8 px-2 rounded-lg border border-white/10 bg-black/30 text-xs hover:border-[#1CEAB9]/40 flex items-center"
+            className="h-8 px-2 rounded-lg border border-[#1CEAB9]/20 bg-black/30 text-xs hover:border-[#1CEAB9]/45 flex items-center"
             title="Explorer"
           >
             <FaExternalLinkAlt />
