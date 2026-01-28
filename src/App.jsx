@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import useIsMobile from "./hooks/useIsMobile";
 import TokenDashboardMobile from "./mobile/TokenDashboard.mobile";
 import TokenCreationFormMobile from "./mobile/TokenCreationForm.mobile";
+import WalletConnectMobile from "./mobile/WalletConnect.mobile";
 
 import {
   ConnectionProvider,
@@ -408,7 +409,7 @@ export default function App() {
                   toggleTheme={toggleTheme}
                 />
               )}
-              {page === "wallet" && <WalletConnect />}
+              {page === "wallet" && (isMobile ? <WalletConnectMobile /> : <WalletConnect />)}
             </main>
           </div>
         </WalletModalProvider>
