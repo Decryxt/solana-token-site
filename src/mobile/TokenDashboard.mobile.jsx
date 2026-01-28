@@ -12,8 +12,8 @@ import {
 } from "react-icons/fa";
 
 import RevokeMintAuthorityMobile from "./RevokeMintAuthority.mobile";
-import RevokeFreezeAuthority from "../components/RevokeFreezeAuthority";
-import FreezeTokenAccount from "../components/FreezeTokenAccount";
+import RevokeFreezeAuthorityMobile from "./RevokeFreezeAuthority.mobile";
+import FreezeTokenAccountMobile from "./FreezeTokenAccount.mobile";
 import ThawTokenAccount from "../components/ThawTokenAccount";
 import TokenAnalyticsPanel from "../components/TokenAnalyticsPanel";
 import SetAuthority from "../components/SetAuthority";
@@ -253,10 +253,10 @@ export default function TokenDashboardMobile() {
                 <RevokeMintAuthorityMobile onBack={backFromDetail} />
               )}
               {activeDetail === "RevokeFreezeAuthority" && (
-                <RevokeFreezeAuthority onBack={backFromDetail} />
+                <RevokeFreezeAuthorityMobile onBack={backFromDetail} />
               )}
               {activeDetail === "FreezeTokenAccount" && (
-                <FreezeTokenAccount onBack={backFromDetail} />
+                <FreezeTokenAccountMobile onBack={backFromDetail} />
               )}
               {activeDetail === "ThawTokenAccount" && (
                 <ThawTokenAccount onBack={backFromDetail} />
