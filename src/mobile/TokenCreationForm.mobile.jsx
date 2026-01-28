@@ -105,7 +105,7 @@ export default function TokenCreationFormMobile({ onBack }) {
       </div>
 
       {/* Outer wrapper clips black */}
-      <div className="rounded-2xl border border-[#1CEAB9]/35 overflow-hidden">
+      <div className="rounded-2xl border border-[#1CEAB9] overflow-hidden">
         {/* Inner surface: black stays inside */}
         <div className="bg-[#0B0E11] p-4 text-white">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -296,7 +296,7 @@ export default function TokenCreationFormMobile({ onBack }) {
 function Field({ label, children }) {
   return (
     <div className="space-y-1">
-      <div className="text-xs font-semibold text-white/75">{label}</div>
+      <div className="text-xs font-semibold text-white">{label}</div>
       {children}
     </div>
   );
