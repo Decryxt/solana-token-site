@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FaBan, FaArrowLeft } from "react-icons/fa";
+import { FaBan } from "react-icons/fa";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import {
   SystemProgram,
@@ -19,15 +19,16 @@ import {
 function withTimeout(promise, ms, label = "Request") {
   let t;
   const timeout = new Promise((_, reject) => {
-    t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    t = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms
+    );
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
 }
 
-export default function RevokeMintAuthorityMobile({ onBack }) {
+export default function RevokeMintAuthorityMobile() {
   const { publicKey, sendTransaction, connected } = useWallet();
-
-  // ✅ Use the same connection your app is already providing
   const { connection } = useConnection();
 
   const REVOKE_MINT_FEE_SOL = 0.04;
@@ -55,7 +56,7 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
       setStatus("");
 
       try {
-        // ✅ Timeout prevents infinite "Loading..." if RPC hangs on mobile
+        // Support both classic SPL + Token-2022 token accounts
         const [classic, t22] = await withTimeout(
           Promise.all([
             connection.getParsedTokenAccountsByOwner(publicKey, {
@@ -99,9 +100,7 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
         console.error("Error fetching tokens:", err);
         if (alive) {
           setTokenAccounts([]);
-          setStatus(
-            `Failed to load tokens.\n${err?.message || "Unknown error"}`
-          );
+          setStatus(`Failed to load tokens.\n${err?.message || "Unknown error"}`);
         }
       } finally {
         if (alive) setLoadingTokens(false);
@@ -175,8 +174,9 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
       );
 
       const treasuryStr = import.meta.env.VITE_ORIGINFI_TREASURY;
-      if (!treasuryStr)
+      if (!treasuryStr) {
         throw new Error("Treasury wallet not configured (VITE_ORIGINFI_TREASURY).");
+      }
       const treasuryPubkey = new PublicKey(treasuryStr);
 
       const feeLamports = Math.round(REVOKE_MINT_FEE_SOL * LAMPORTS_PER_SOL);
@@ -213,37 +213,23 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
 
   return (
     <div className="w-full">
-      {/* Header */}
+      {/* Header (Centered, no internal back button) */}
       <div className={surface}>
-        <div className={`${surfaceInner} p-4 text-white`}>
-          <div className="flex items-center justify-between">
-            <button
-              onClick={onBack}
-              disabled={processing}
-              className="rounded-xl border border-[#1CEAB9]/35 bg-black/30 px-3 py-2 text-sm hover:border-[#1CEAB9]/60 disabled:opacity-60"
-            >
-              <span className="inline-flex items-center gap-2">
-                <FaArrowLeft className="text-[#1CEAB9]" />
-                Back
-              </span>
-            </button>
+        <div className={`${surfaceInner} p-5 text-white`}>
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className="h-12 w-12 rounded-xl border border-[#1CEAB9]/30 bg-black flex items-center justify-center">
+              <FaBan className="text-[#1CEAB9] text-2xl" />
+            </div>
 
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl border border-[#1CEAB9]/30 bg-black flex items-center justify-center">
-                <FaBan className="text-[#1CEAB9] text-xl" />
-              </div>
-              <div className="text-right">
-                <div className="text-lg font-bold leading-tight">
-                  Revoke Mint Authority
-                </div>
-                <div className="text-xs text-white/60">
-                  Estimated cost: ~0.04 SOL
-                </div>
+            <div>
+              <div className="text-lg font-bold">Revoke Mint Authority</div>
+              <div className="text-xs text-white/60 mt-0.5">
+                Estimated cost: ~0.04 SOL
               </div>
             </div>
           </div>
 
-          <div className="mt-3 text-sm text-white/75">
+          <div className="mt-4 text-sm text-white/75 text-center">
             Permanently disables future minting by setting mint authority to{" "}
             <span className="text-white font-semibold">null</span>. Only the
             current mint authority can do this.
@@ -273,7 +259,9 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
               disabled={processing || loadingTokens}
             >
               <option value="" disabled>
-                {loadingTokens ? "Loading tokens..." : "Select your token mint address"}
+                {loadingTokens
+                  ? "Loading tokens..."
+                  : "Select your token mint address"}
               </option>
 
               {filteredTokens.length > 0 ? (
@@ -292,7 +280,9 @@ export default function RevokeMintAuthorityMobile({ onBack }) {
               <div className="rounded-xl border border-[#1CEAB9]/20 bg-black/20 p-3 text-xs text-white/70">
                 <div>
                   <span className="text-white/50">Mint:</span>{" "}
-                  <span className="text-white break-all">{selectedToken.mint}</span>
+                  <span className="text-white break-all">
+                    {selectedToken.mint}
+                  </span>
                 </div>
                 <div className="mt-1">
                   <span className="text-white/50">Program:</span>{" "}
