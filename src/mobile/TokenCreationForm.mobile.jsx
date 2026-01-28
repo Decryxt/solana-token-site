@@ -12,9 +12,24 @@ import {
 } from "react-icons/fa";
 
 import { mintTokenShared } from "../utils/mintToken.mobile";
+import MobileWalletGate from "./MobileWalletGate";
 
 export default function TokenCreationFormMobile({ onBack }) {
   const wallet = useWallet();
+  if (!wallet?.connected) {
+  return (
+    <div className="w-full px-4 pb-24 pt-4">
+      <button
+        onClick={onBack}
+        className="mb-4 rounded-xl border border-[#1CEAB9]/45 px-3 py-2 text-sm text-white hover:border-[#1CEAB9]/80"
+      >
+        Back
+      </button>
+
+      <MobileWalletGate />
+    </div>
+  );
+} 
 
   const [formData, setFormData] = useState({
     name: "",
