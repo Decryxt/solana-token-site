@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 
+import useIsMobile from "./hooks/useIsMobile";
+import TokenDashboardMobile from "./mobile/TokenDashboard.mobile";
+
 import {
   ConnectionProvider,
   WalletProvider,
@@ -32,6 +35,7 @@ import GlassCards from "./components/GlassCards";
 
 export default function App() {
   const [page, setPage] = useState("home");
+  const isMobile = useIsMobile();
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
 
@@ -379,7 +383,7 @@ export default function App() {
 
                 return <TokenCreationForm />;
               })()}
-              {page === "dashboard" && <TokenDashboard />}
+              {page === "dashboard" && (isMobile ? <TokenDashboardMobile /> : <TokenDashboard />)}
               {page === "badges" && <BadgeShowcase />}
               {page === "about" && <About />}
               {page === "community" && <Community />}
