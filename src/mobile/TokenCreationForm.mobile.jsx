@@ -1,5 +1,3 @@
-// src/mobile/TokenCreationForm.mobile.jsx
-
 import React, { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
@@ -12,24 +10,38 @@ import {
 } from "react-icons/fa";
 
 import { mintTokenShared } from "../utils/mintToken.mobile";
-import MobileWalletGate from "./MobileWalletGate";
+
+// ✅ Use your NEW mobile-exclusive wallet connect card
+import MobileWalletConnectCard from "./MobileWalletConnectCard";
 
 export default function TokenCreationFormMobile({ onBack }) {
   const wallet = useWallet();
-  if (!wallet?.connected) {
-  return (
-    <div className="w-full px-4 pb-24 pt-4">
-      <button
-        onClick={onBack}
-        className="mb-4 rounded-xl border border-[#1CEAB9]/45 px-3 py-2 text-sm text-white hover:border-[#1CEAB9]/80"
-      >
-        Back
-      </button>
 
-      <MobileWalletGate />
-    </div>
-  );
-} 
+  // ✅ Mobile wallet gate (prevents the useless "Select Wallet" dead-end)
+  if (!wallet?.connected) {
+    return (
+      <div className="w-full px-4 pb-24 pt-4">
+        {/* Header (same as your mobile pages) */}
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="rounded-xl border border-[#1CEAB9]/45 px-3 py-2 text-sm text-white hover:border-[#1CEAB9]/80"
+          >
+            Back
+          </button>
+
+          <div className="text-center">
+            <div className="text-base font-semibold text-white">Token Creation</div>
+            <div className="text-xs text-white/55">Mobile</div>
+          </div>
+
+          <div className="w-[64px]" />
+        </div>
+
+        <MobileWalletConnectCard />
+      </div>
+    );
+  }
 
   const [formData, setFormData] = useState({
     name: "",
