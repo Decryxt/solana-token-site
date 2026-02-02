@@ -1,17 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 /**
- * PublicProfileView (SOCIAL REWORK)
- * Goal: make this feel like a creator social profile (X/IG vibes) where:
- * - Identity + trust is above the fold
- * - Launches feel like posts (cards)
- * - “Receipts” (track record) are loud
- * - Page never extends past screen; card becomes scroll container
+ * PublicProfileView (SOCIAL REWORK v2)
+ * Fixes requested:
+ * - Banner/identity overlap cleaned up (no awkward collisions)
+ * - Internal scroll works (card has its own scroll area + visible scrollbar)
+ * - Trust score displayed as 0–100 (more “detailed”), computed client-side (no backend changes)
  *
- * Notes:
- * - No backend changes required; uses existing user fields + token fields if present.
- * - Any missing token stats simply show "—" gracefully.
+ * Constraints:
+ * - Card never extends past the screen; content scrolls inside the card.
  */
+
 export default function PublicProfileView({ user, onBack }) {
   if (!user) return null;
 
@@ -22,17 +21,6 @@ export default function PublicProfileView({ user, onBack }) {
 
   const token = localStorage.getItem("originfi_jwt");
   const API = "https://api.originfi.net";
-
-  useEffect(() => {
-    if (!user?.id || !token) return;
-
-    fetch(`${API}/api/protected/follow/status/${user.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => setIsFollowing(!!data.isFollowing))
-      .catch(() => {});
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
     id,
@@ -46,7 +34,6 @@ export default function PublicProfileView({ user, onBack }) {
     creatorInfo,
     featuredBadgeIds = [],
 
-    // Optional extras
     twitterUrl,
     discordUrl,
     websiteUrl,
@@ -57,6 +44,18 @@ export default function PublicProfileView({ user, onBack }) {
   const createdAtString = createdAt ? new Date(createdAt).toLocaleDateString() : null;
   const safeFollowers = localFollowers;
   const safeFollowing = typeof followingCount === "number" ? followingCount : 0;
+  const hasAnySocial = twitterUrl || discordUrl || websiteUrl || telegramUrl;
+
+  useEffect(() => {
+    if (!id || !token) return;
+
+    fetch(`${API}/api/protected/follow/status/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => setIsFollowing(!!data.isFollowing))
+      .catch(() => {});
+  }, [id, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function toggleFollow() {
     if (!token) {
@@ -77,16 +76,11 @@ export default function PublicProfileView({ user, onBack }) {
     }
 
     setIsFollowing(data.isFollowing);
-
-    if (typeof data.followersCount === "number") {
-      setLocalFollowers(data.followersCount);
-    }
+    if (typeof data.followersCount === "number") setLocalFollowers(data.followersCount);
   }
 
-  const hasAnySocial = twitterUrl || discordUrl || websiteUrl || telegramUrl;
-
-  // Featured badges: if you store ids as names (current behavior), we keep it.
-  // If later you store numeric ids, swap includes(b.name) -> includes(b.id)
+  // Featured badges: current behavior assumes featuredBadgeIds stores badge names.
+  // If later you store real ids, swap includes(b.name) -> includes(b.id).
   const displayedBadges =
     Array.isArray(featuredBadgeIds) && featuredBadgeIds.length > 0
       ? (badges || []).filter((b) => b?.name && featuredBadgeIds.includes(b.name))
@@ -139,7 +133,7 @@ export default function PublicProfileView({ user, onBack }) {
     return sorted[0] || null;
   }, [tokens]);
 
-  // Creator Level (keep your system, but we'll present it as secondary to “Reputation”)
+  // Creator level (secondary “vibe” label)
   function computeCreatorLevel(tokensArr, badgesArr, agg) {
     const numTokens = tokensArr.length;
     const numBadges = badgesArr.length;
@@ -151,68 +145,52 @@ export default function PublicProfileView({ user, onBack }) {
       Math.min(agg.totalVolume24h / 500, 500) +
       Math.min(agg.totalHolders * 0.5, 300);
 
-    if (xp < 50) {
-      return { label: "Newcomer", description: "Early in their OriginFi journey." };
-    }
-    if (xp < 200) {
-      return { label: "Emerging Builder", description: "Shipping and gaining traction." };
-    }
-    if (xp < 600) {
+    if (xp < 50) return { label: "Newcomer", description: "Early in their OriginFi journey." };
+    if (xp < 200) return { label: "Emerging Builder", description: "Shipping and gaining traction." };
+    if (xp < 600)
       return { label: "Seasoned Architect", description: "Consistent creator with strong signals." };
-    }
-    return {
-      label: "Meta Origin",
-      description: "High-impact creator with major on-chain footprint.",
-    };
+    return { label: "Meta Origin", description: "High-impact creator with major on-chain footprint." };
   }
 
   const creatorLevel = computeCreatorLevel(tokens || [], badges || [], aggregate);
 
   /**
-   * Reputation score v1 (no backend change)
-   * Emphasis: longevity and responsibility signals.
-   * Since we don't have authority-history fields in tokens here, we use what we can:
-   * - tokens count, badges count
-   * - aggregate liquidity/volume/holders (capped)
+   * Trust Score 0–100 (v1)
+   * Intent:
+   * - Looks “detailed” and consistent
+   * - Hard-capped so whales don’t instantly become 100
+   * - Uses only data you already have on the profile response
    *
-   * You can later replace this with real “receipts” (mint revoked %, freeze revoked %, metadata locked %)
-   * as soon as those exist in your token records.
+   * Later upgrade:
+   * - Replace/extend with real receipts like mint revoked %, freeze revoked %, metadata locked %
    */
-  const reputation = useMemo(() => {
+  const trust = useMemo(() => {
     const numTokens = (tokens || []).length;
     const numBadges = (badges || []).length;
 
-    const score =
-      numTokens * 6 +
-      numBadges * 4 +
-      Math.min(aggregate.totalHolders / 150, 25) +
-      Math.min(aggregate.totalLiquidity / 2000, 25) +
-      Math.min(aggregate.totalVolume24h / 5000, 20);
+    // Normalize / cap everything to avoid crazy scores
+    const tokenScore = Math.min(numTokens * 6, 30); // up to 30
+    const badgeScore = Math.min(numBadges * 4, 20); // up to 20
+    const holderScore = Math.min(aggregate.totalHolders / 200, 20); // up to 20
+    const liquidityScore = Math.min(aggregate.totalLiquidity / 5000, 15); // up to 15
+    const volumeScore = Math.min(aggregate.totalVolume24h / 15000, 15); // up to 15
 
-    const normalized = Math.max(0, Math.min(100, Math.round(score)));
+    const raw = tokenScore + badgeScore + holderScore + liquidityScore + volumeScore;
+    const score = Math.max(0, Math.min(100, Math.round(raw)));
+
     let tier = "Low";
-    if (normalized >= 70) tier = "High";
-    else if (normalized >= 40) tier = "Medium";
+    if (score >= 75) tier = "High";
+    else if (score >= 45) tier = "Medium";
 
-    return { score: normalized, tier };
+    return { score, tier };
   }, [tokens, badges, aggregate]);
 
   // Social “receipts” row (best-effort)
   const receipts = useMemo(() => {
     return [
-      {
-        label: "Launches",
-        value: String((tokens || []).length),
-      },
-      {
-        label: "Active signals",
-        value: aggregate.totalHolders > 0 ? "Yes" : "—",
-        hint: "Based on holder activity data available.",
-      },
-      {
-        label: "Total holders",
-        value: (aggregate.totalHolders || 0).toLocaleString(),
-      },
+      { label: "Launches", value: String((tokens || []).length) },
+      { label: "Badges", value: String((badges || []).length) },
+      { label: "Total holders", value: (aggregate.totalHolders || 0).toLocaleString() },
       {
         label: "24h volume",
         value:
@@ -221,18 +199,17 @@ export default function PublicProfileView({ user, onBack }) {
             : "—",
       },
     ];
-  }, [tokens, aggregate]);
+  }, [tokens, badges, aggregate]);
 
   // Helpers
   function shortMint(mint) {
     if (!mint || typeof mint !== "string") return "";
-    if (mint.length <= 12) return mint;
-    return `${mint.slice(0, 5)}…${mint.slice(-5)}`;
+    if (mint.length <= 14) return mint;
+    return `${mint.slice(0, 6)}…${mint.slice(-6)}`;
   }
 
   function tokenStatus(t) {
-    // Placeholder: you can swap this once you store a real status field.
-    // For now: if holders/liq/vol exist -> Active
+    // Placeholder: swap later when you store a real status field
     const activeSignal = Number(t?.holders || 0) > 0 || Number(t?.liquidityUsd || 0) > 0;
     if (activeSignal) return { label: "Active", tone: "good" };
     return { label: "Unknown", tone: "neutral" };
@@ -243,7 +220,6 @@ export default function PublicProfileView({ user, onBack }) {
     window.open(url, "_blank", "noreferrer");
   }
 
-  // Dex links (best-effort). If you later store pairAddress, use that.
   function solscanMintUrl(mint) {
     if (!mint) return null;
     return `https://solscan.io/token/${mint}`;
@@ -254,11 +230,12 @@ export default function PublicProfileView({ user, onBack }) {
     return `https://dexscreener.com/solana/${mint}`;
   }
 
+  const trustBarWidth = `${Math.max(0, Math.min(100, trust.score))}%`;
+
   return (
-    // Fullscreen overlay container. The card is the scroll area.
     <div className="w-full px-4">
       <div className="mx-auto w-full max-w-6xl">
-        {/* Card with internal scroll to prevent expanding past screen */}
+        {/* Card (internal scroll container) */}
         <div
           className="
             mt-2
@@ -268,13 +245,10 @@ export default function PublicProfileView({ user, onBack }) {
             shadow-[0_0_25px_rgba(28,234,185,0.18)]
             overflow-hidden
           "
-          style={{
-            // Card never exceeds viewport; content scrolls inside
-            maxHeight: "calc(100vh - 28px)",
-          }}
+          style={{ maxHeight: "calc(100vh - 28px)" }}
         >
-          {/* Sticky top bar inside the card */}
-          <div className="sticky top-0 z-10 bg-[#0B0E11]/95 backdrop-blur border-b border-[#1CEAB9]/15">
+          {/* Sticky top bar */}
+          <div className="sticky top-0 z-20 bg-[#0B0E11]/95 backdrop-blur border-b border-[#1CEAB9]/15">
             <div className="flex items-center justify-between px-4 py-3">
               <button
                 onClick={onBack}
@@ -283,11 +257,10 @@ export default function PublicProfileView({ user, onBack }) {
                 ← Back
               </button>
 
-              {/* Center: keep brand tiny; person is the star */}
               <div className="text-[13px] md:text-sm font-semibold tracking-wide">
                 <span className="text-white">Origin</span>
                 <span className="text-[#1CEAB9]">Fi</span>
-                <span className="text-gray-500"> / Profile</span>
+                <span className="text-gray-500"> / Creator</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -311,7 +284,6 @@ export default function PublicProfileView({ user, onBack }) {
                   onClick={() => {
                     try {
                       navigator.clipboard.writeText(window.location.href);
-                      // no toast system here, keep it simple
                       alert("Profile link copied.");
                     } catch {
                       alert("Copy failed.");
@@ -325,11 +297,12 @@ export default function PublicProfileView({ user, onBack }) {
             </div>
           </div>
 
-          {/* Scrollable content area */}
-          <div className="overflow-y-auto">
-            {/* Banner */}
+          {/* SCROLL AREA (this is where the scrollbar should appear) */}
+          <div className="overflow-y-auto pr-1" style={{ maxHeight: "calc(100vh - 28px)" }}>
+            {/* Banner + Identity block (no overlap) */}
             <div className="relative">
-              <div className="w-full h-36 md:h-44 bg-black/40 border-b border-[#1CEAB9]/10">
+              {/* Banner */}
+              <div className="w-full h-40 md:h-48 bg-black/40 border-b border-[#1CEAB9]/10 overflow-hidden">
                 {bannerImageUrl ? (
                   <img
                     src={bannerImageUrl}
@@ -341,13 +314,16 @@ export default function PublicProfileView({ user, onBack }) {
                     No banner set
                   </div>
                 )}
+
+                {/* Subtle fade for readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11]/95 via-[#0B0E11]/25 to-transparent pointer-events-none" />
               </div>
 
-              {/* Avatar + primary identity card overlays banner */}
-              <div className="px-4">
-                <div className="-mt-10 md:-mt-12 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-                  {/* Left identity */}
-                  <div className="flex items-end gap-4">
+              {/* Avatar + name row sits BELOW banner, not overlapping awkwardly */}
+              <div className="px-4 pt-4">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                  {/* Identity */}
+                  <div className="flex items-start gap-4">
                     <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border border-[#1CEAB9]/70 bg-black flex-shrink-0 shadow-[0_0_18px_rgba(28,234,185,0.18)]">
                       {profileImageUrl ? (
                         <img src={profileImageUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -358,31 +334,30 @@ export default function PublicProfileView({ user, onBack }) {
                       )}
                     </div>
 
-                    <div className="pb-2">
-                      <div className="flex items-center gap-2">
-                        <h1 className="text-2xl md:text-3xl font-semibold text-white leading-tight">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h1 className="text-2xl md:text-3xl font-semibold text-white leading-tight truncate">
                           {username || "OriginFi Creator"}
                         </h1>
 
-                        {/* Trust tier pill */}
+                        {/* Tier pill (secondary) */}
                         <span
                           className={`
                             text-[11px] px-2 py-1 rounded-full border
                             ${
-                              reputation.tier === "High"
+                              trust.tier === "High"
                                 ? "border-[#1CEAB9]/60 text-[#1CEAB9] bg-[#1CEAB9]/10"
-                                : reputation.tier === "Medium"
+                                : trust.tier === "Medium"
                                 ? "border-yellow-400/50 text-yellow-300 bg-yellow-400/10"
                                 : "border-red-400/50 text-red-300 bg-red-400/10"
                             }
                           `}
-                          title="A best-effort trust signal based on launches, badges, and on-chain activity."
+                          title="Tier derived from the Trust Score."
                         >
-                          Trust: {reputation.tier}
+                          {trust.tier} trust
                         </span>
                       </div>
 
-                      {/* Mission line (creatorInfo) */}
                       <p className="text-[12px] md:text-sm text-gray-300 mt-1 max-w-[72ch]">
                         {creatorInfo || "Building on Solana through OriginFi."}
                       </p>
@@ -390,47 +365,25 @@ export default function PublicProfileView({ user, onBack }) {
                       <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-gray-400">
                         {createdAtString && (
                           <span>
-                            Joined <span className="text-[#1CEAB9] font-mono">{createdAtString}</span>
+                            Joined{" "}
+                            <span className="text-[#1CEAB9] font-mono">{createdAtString}</span>
                           </span>
                         )}
                         <span className="opacity-40">•</span>
                         <span>
-                          <span className="text-[#1CEAB9] font-mono">{safeFollowers}</span> Followers
+                          <span className="text-[#1CEAB9] font-mono">{safeFollowers}</span>{" "}
+                          Followers
                         </span>
                         <span className="opacity-40">•</span>
                         <span>
-                          <span className="text-[#1CEAB9] font-mono">{safeFollowing}</span> Following
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right summary box */}
-                  <div className="w-full md:w-[340px]">
-                    <div className="rounded-xl border border-[#1CEAB9]/25 bg-black/60 p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] uppercase tracking-wide text-gray-400">
-                          Reputation score
-                        </span>
-                        <span className="text-lg font-semibold text-white">
-                          <span className="text-[#1CEAB9] font-mono">{reputation.score}</span>
-                          <span className="text-gray-500 text-sm"> / 100</span>
+                          <span className="text-[#1CEAB9] font-mono">{safeFollowing}</span>{" "}
+                          Following
                         </span>
                       </div>
 
-                      <div className="mt-2 rounded-lg border border-[#1CEAB9]/15 bg-[#050709] px-3 py-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] text-gray-400">Creator level</span>
-                          <span className="text-[12px] font-semibold text-[#1CEAB9]">
-                            {creatorLevel.label}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[11px] text-gray-400">{creatorLevel.description}</p>
-                      </div>
-
-                      {/* Social links compact */}
+                      {/* Social links */}
                       {hasAnySocial && (
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="mt-3 flex flex-wrap gap-2">
                           {twitterUrl && (
                             <button
                               onClick={() => openExternal(twitterUrl)}
@@ -467,10 +420,48 @@ export default function PublicProfileView({ user, onBack }) {
                       )}
                     </div>
                   </div>
+
+                  {/* Trust score box (0–100) */}
+                  <div className="w-full md:w-[360px]">
+                    <div className="rounded-xl border border-[#1CEAB9]/25 bg-black/60 p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] uppercase tracking-wide text-gray-400">
+                          Trust score
+                        </span>
+                        <span className="text-lg font-semibold text-white">
+                          <span className="text-[#1CEAB9] font-mono">{trust.score}</span>
+                          <span className="text-gray-500 text-sm"> / 100</span>
+                        </span>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="mt-2 h-2 rounded-full bg-white/5 border border-[#1CEAB9]/10 overflow-hidden">
+                        <div
+                          className="h-full bg-[#1CEAB9]/70"
+                          style={{ width: trustBarWidth }}
+                        />
+                      </div>
+
+                      <p className="mt-2 text-[11px] text-gray-500">
+                        Based on launches, badges, and available on-chain activity.
+                      </p>
+
+                      {/* Creator level (secondary) */}
+                      <div className="mt-3 rounded-lg border border-[#1CEAB9]/15 bg-[#050709] px-3 py-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-gray-400">Creator level</span>
+                          <span className="text-[12px] font-semibold text-[#1CEAB9]">
+                            {creatorLevel.label}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-gray-400">{creatorLevel.description}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* About */}
-                <div className="mt-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* About + Track record */}
+                <div className="mt-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3 px-4">
                   <div className="md:col-span-2 rounded-xl border border-[#1CEAB9]/25 bg-[#050709] p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h2 className="text-sm font-semibold text-white">About</h2>
@@ -481,7 +472,6 @@ export default function PublicProfileView({ user, onBack }) {
                     </div>
                   </div>
 
-                  {/* Receipts panel */}
                   <div className="rounded-xl border border-[#1CEAB9]/25 bg-black/60 p-4">
                     <h3 className="text-sm font-semibold text-white mb-2">Track record</h3>
                     <div className="grid grid-cols-2 gap-3">
@@ -489,21 +479,24 @@ export default function PublicProfileView({ user, onBack }) {
                         <div
                           key={r.label}
                           className="rounded-lg border border-[#1CEAB9]/15 bg-[#050709] px-3 py-2"
-                          title={r.hint || ""}
                         >
-                          <p className="text-[10px] uppercase tracking-wide text-gray-400">{r.label}</p>
-                          <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">{r.value}</p>
+                          <p className="text-[10px] uppercase tracking-wide text-gray-400">
+                            {r.label}
+                          </p>
+                          <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">
+                            {r.value}
+                          </p>
                         </div>
                       ))}
                     </div>
                     <p className="mt-2 text-[10px] text-gray-500">
-                      Receipts will expand as OriginFi tracks authority actions and lifecycle outcomes.
+                      This expands when authority actions + token lifecycle are tracked.
                     </p>
                   </div>
                 </div>
 
                 {/* Badges */}
-                <div className="mb-5">
+                <div className="px-4 pb-2">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-white">Badges</h3>
                     <span className="text-[11px] text-gray-500">
@@ -534,7 +527,7 @@ export default function PublicProfileView({ user, onBack }) {
                             <div className="flex flex-col leading-tight">
                               <span className="text-[12px] text-white">{badge.name}</span>
                               <span className="text-[10px] text-gray-400">
-                                {badge.description ? badge.description.slice(0, 42) : "Verified signal"}
+                                {badge.description ? badge.description.slice(0, 42) : "Reputation signal"}
                                 {badge.description && badge.description.length > 42 ? "…" : ""}
                               </span>
                             </div>
@@ -551,9 +544,7 @@ export default function PublicProfileView({ user, onBack }) {
             <div className="px-4 pb-2">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-white">Pinned launch</h3>
-                <span className="text-[11px] text-gray-500">
-                  Best-performing launch (v1)
-                </span>
+                <span className="text-[11px] text-gray-500">Most active (v1)</span>
               </div>
 
               {!pinnedToken ? (
@@ -561,7 +552,13 @@ export default function PublicProfileView({ user, onBack }) {
                   No launches pinned yet.
                 </div>
               ) : (
-                <PinnedTokenCard tokenObj={pinnedToken} tokenStatus={tokenStatus} shortMint={shortMint} solscanMintUrl={solscanMintUrl} dexscreenerUrl={dexscreenerUrl} />
+                <PinnedTokenCard
+                  tokenObj={pinnedToken}
+                  tokenStatus={tokenStatus}
+                  shortMint={shortMint}
+                  solscanMintUrl={solscanMintUrl}
+                  dexscreenerUrl={dexscreenerUrl}
+                />
               )}
             </div>
 
@@ -572,7 +569,7 @@ export default function PublicProfileView({ user, onBack }) {
                 <span className="text-[11px] text-gray-500">{tokens?.length || 0} total</span>
               </div>
 
-              {(!tokens || tokens.length === 0) ? (
+              {!tokens || tokens.length === 0 ? (
                 <div className="rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4 text-xs text-gray-500">
                   This creator hasn&apos;t launched any tokens through OriginFi yet.
                 </div>
@@ -580,7 +577,7 @@ export default function PublicProfileView({ user, onBack }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {recentTokens.map((t) => (
                     <LaunchCard
-                      key={t?.id || t?.mintAddress || Math.random()}
+                      key={t?.id || t?.mintAddress || `${Math.random()}`}
                       tokenObj={t}
                       tokenStatus={tokenStatus}
                       shortMint={shortMint}
@@ -591,32 +588,44 @@ export default function PublicProfileView({ user, onBack }) {
                 </div>
               )}
 
-              {/* On-chain performance (secondary, below feed) */}
+              {/* On-chain performance */}
               <div className="mt-5 rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-white">On-chain performance</h3>
-                  <span className="text-[10px] text-gray-500">Aggregated across launches</span>
+                  <span className="text-[10px] text-gray-500">Aggregated</span>
                 </div>
 
-                {(!tokens || tokens.length === 0) ? (
+                {!tokens || tokens.length === 0 ? (
                   <p className="text-xs text-gray-500">
-                    Once this creator launches tokens with on-chain activity, liquidity, volume and holder stats will appear here.
+                    Once this creator has launches with activity, performance will appear here.
                   </p>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                    <Metric label="Total liquidity" value={`$${aggregate.totalLiquidity.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
-                    <Metric label="24h volume" value={`$${aggregate.totalVolume24h.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+                    <Metric
+                      label="Total liquidity"
+                      value={`$${aggregate.totalLiquidity.toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })}`}
+                    />
+                    <Metric
+                      label="24h volume"
+                      value={`$${aggregate.totalVolume24h.toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })}`}
+                    />
                     <Metric label="24h trades" value={aggregate.totalTrades24h.toLocaleString()} />
                     <Metric label="Total holders" value={aggregate.totalHolders.toLocaleString()} />
                   </div>
                 )}
               </div>
 
-              {/* Follow value hint */}
               <p className="mt-4 text-[11px] text-gray-500">
                 Following will surface this creator’s launches in your feed (coming soon).
               </p>
             </div>
+
+            {/* Spacer so last items don’t feel cramped */}
+            <div className="h-6" />
           </div>
         </div>
       </div>
@@ -624,7 +633,7 @@ export default function PublicProfileView({ user, onBack }) {
   );
 }
 
-/* ---------- Small UI helpers (kept inline for “whole file” reliability) ---------- */
+/* ---------- Helpers ---------- */
 
 function Metric({ label, value }) {
   return (
@@ -642,16 +651,20 @@ function PinnedTokenCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dex
   return (
     <div className="rounded-2xl border border-[#1CEAB9]/25 bg-[#050709] p-4 shadow-[0_0_18px_rgba(28,234,185,0.10)]">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold text-white">{tokenObj?.name || "Unnamed Token"}</span>
-            {tokenObj?.symbol && (
-              <span className="text-[12px] text-[#1CEAB9]">{tokenObj.symbol}</span>
-            )}
+        <div className="flex flex-col min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-lg font-semibold text-white truncate">
+              {tokenObj?.name || "Unnamed Token"}
+            </span>
+            {tokenObj?.symbol && <span className="text-[12px] text-[#1CEAB9]">{tokenObj.symbol}</span>}
             <span
               className={`
-                ml-1 text-[10px] px-2 py-1 rounded-full border
-                ${s.tone === "good" ? "border-[#1CEAB9]/40 text-[#1CEAB9] bg-[#1CEAB9]/10" : "border-gray-500/40 text-gray-300 bg-white/5"}
+                text-[10px] px-2 py-1 rounded-full border
+                ${
+                  s.tone === "good"
+                    ? "border-[#1CEAB9]/40 text-[#1CEAB9] bg-[#1CEAB9]/10"
+                    : "border-gray-500/40 text-gray-300 bg-white/5"
+                }
               `}
             >
               {s.label}
@@ -659,13 +672,11 @@ function PinnedTokenCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dex
           </div>
 
           {mint && (
-            <p className="mt-1 text-[11px] text-gray-400 font-mono">
-              {shortMint(mint)}
-            </p>
+            <p className="mt-1 text-[11px] text-gray-400 font-mono">{shortMint(mint)}</p>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {dexscreenerUrl(mint) && (
             <a
               href={dexscreenerUrl(mint)}
@@ -691,13 +702,27 @@ function PinnedTokenCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dex
 
       <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
         <Metric label="Holders" value={String(tokenObj?.holders ?? "—")} />
-        <Metric label="24h volume" value={tokenObj?.volume24hUsd ? `$${Number(tokenObj.volume24hUsd).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"} />
-        <Metric label="Liquidity" value={tokenObj?.liquidityUsd ? `$${Number(tokenObj.liquidityUsd).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"} />
+        <Metric
+          label="24h volume"
+          value={
+            tokenObj?.volume24hUsd
+              ? `$${Number(tokenObj.volume24hUsd).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+              : "—"
+          }
+        />
+        <Metric
+          label="Liquidity"
+          value={
+            tokenObj?.liquidityUsd
+              ? `$${Number(tokenObj.liquidityUsd).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+              : "—"
+          }
+        />
         <Metric label="24h trades" value={String(tokenObj?.trades24h ?? "—")} />
       </div>
 
       <p className="mt-3 text-[11px] text-gray-500">
-        Pinned launch highlights the most active token based on holders/volume/trades (v1 logic).
+        Pinned launch is selected using holders/volume/trades (v1 logic).
       </p>
     </div>
   );
@@ -711,28 +736,26 @@ function LaunchCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dexscree
     <div className="rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4 hover:border-[#1CEAB9]/30 transition">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-[14px] font-semibold text-white truncate">
               {tokenObj?.name || "Unnamed Token"}
             </span>
-            {tokenObj?.symbol && (
-              <span className="text-[11px] text-[#1CEAB9]">{tokenObj.symbol}</span>
-            )}
+            {tokenObj?.symbol && <span className="text-[11px] text-[#1CEAB9]">{tokenObj.symbol}</span>}
             <span
               className={`
                 text-[10px] px-2 py-1 rounded-full border
-                ${s.tone === "good" ? "border-[#1CEAB9]/40 text-[#1CEAB9] bg-[#1CEAB9]/10" : "border-gray-500/40 text-gray-300 bg-white/5"}
+                ${
+                  s.tone === "good"
+                    ? "border-[#1CEAB9]/40 text-[#1CEAB9] bg-[#1CEAB9]/10"
+                    : "border-gray-500/40 text-gray-300 bg-white/5"
+                }
               `}
             >
               {s.label}
             </span>
           </div>
 
-          {mint && (
-            <p className="mt-1 text-[11px] text-gray-400 font-mono">
-              {shortMint(mint)}
-            </p>
-          )}
+          {mint && <p className="mt-1 text-[11px] text-gray-400 font-mono">{shortMint(mint)}</p>}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -764,9 +787,7 @@ function LaunchCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dexscree
       <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
         <div className="rounded-lg border border-[#1CEAB9]/10 bg-[#050709] px-3 py-2">
           <p className="text-[10px] uppercase tracking-wide text-gray-400">Holders</p>
-          <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">
-            {tokenObj?.holders ?? "—"}
-          </p>
+          <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">{tokenObj?.holders ?? "—"}</p>
         </div>
         <div className="rounded-lg border border-[#1CEAB9]/10 bg-[#050709] px-3 py-2">
           <p className="text-[10px] uppercase tracking-wide text-gray-400">24h volume</p>
