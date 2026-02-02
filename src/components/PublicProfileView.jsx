@@ -1,14 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 /**
- * PublicProfileView (SOCIAL REWORK v2)
- * Fixes requested:
- * - Banner/identity overlap cleaned up (no awkward collisions)
- * - Internal scroll works (card has its own scroll area + visible scrollbar)
- * - Trust score displayed as 0–100 (more “detailed”), computed client-side (no backend changes)
- *
- * Constraints:
- * - Card never extends past the screen; content scrolls inside the card.
+ * PublicProfileView (SOCIAL REWORK v3 - readability cleanup)
+ * Changes:
+ * - Standardized all surfaces to SOLID dark panels (no layered opacity)
+ * - Banner no longer uses opacity that darkens content
+ * - Overlay gradient toned down to avoid “muddy/dark text” effect
+ * - Text colors standardized for consistent contrast
+ * - Internal scroll preserved (card doesn't exceed viewport)
  */
 
 export default function PublicProfileView({ user, onBack }) {
@@ -80,7 +79,6 @@ export default function PublicProfileView({ user, onBack }) {
   }
 
   // Featured badges: current behavior assumes featuredBadgeIds stores badge names.
-  // If later you store real ids, swap includes(b.name) -> includes(b.id).
   const displayedBadges =
     Array.isArray(featuredBadgeIds) && featuredBadgeIds.length > 0
       ? (badges || []).filter((b) => b?.name && featuredBadgeIds.includes(b.name))
@@ -133,7 +131,7 @@ export default function PublicProfileView({ user, onBack }) {
     return sorted[0] || null;
   }, [tokens]);
 
-  // Creator level (secondary “vibe” label)
+  // Creator level (secondary)
   function computeCreatorLevel(tokensArr, badgesArr, agg) {
     const numTokens = tokensArr.length;
     const numBadges = badgesArr.length;
@@ -154,26 +152,16 @@ export default function PublicProfileView({ user, onBack }) {
 
   const creatorLevel = computeCreatorLevel(tokens || [], badges || [], aggregate);
 
-  /**
-   * Trust Score 0–100 (v1)
-   * Intent:
-   * - Looks “detailed” and consistent
-   * - Hard-capped so whales don’t instantly become 100
-   * - Uses only data you already have on the profile response
-   *
-   * Later upgrade:
-   * - Replace/extend with real receipts like mint revoked %, freeze revoked %, metadata locked %
-   */
+  // Trust Score 0–100 (v1)
   const trust = useMemo(() => {
     const numTokens = (tokens || []).length;
     const numBadges = (badges || []).length;
 
-    // Normalize / cap everything to avoid crazy scores
-    const tokenScore = Math.min(numTokens * 6, 30); // up to 30
-    const badgeScore = Math.min(numBadges * 4, 20); // up to 20
-    const holderScore = Math.min(aggregate.totalHolders / 200, 20); // up to 20
-    const liquidityScore = Math.min(aggregate.totalLiquidity / 5000, 15); // up to 15
-    const volumeScore = Math.min(aggregate.totalVolume24h / 15000, 15); // up to 15
+    const tokenScore = Math.min(numTokens * 6, 30);
+    const badgeScore = Math.min(numBadges * 4, 20);
+    const holderScore = Math.min(aggregate.totalHolders / 200, 20);
+    const liquidityScore = Math.min(aggregate.totalLiquidity / 5000, 15);
+    const volumeScore = Math.min(aggregate.totalVolume24h / 15000, 15);
 
     const raw = tokenScore + badgeScore + holderScore + liquidityScore + volumeScore;
     const score = Math.max(0, Math.min(100, Math.round(raw)));
@@ -185,7 +173,6 @@ export default function PublicProfileView({ user, onBack }) {
     return { score, tier };
   }, [tokens, badges, aggregate]);
 
-  // Social “receipts” row (best-effort)
   const receipts = useMemo(() => {
     return [
       { label: "Launches", value: String((tokens || []).length) },
@@ -201,7 +188,6 @@ export default function PublicProfileView({ user, onBack }) {
     ];
   }, [tokens, badges, aggregate]);
 
-  // Helpers
   function shortMint(mint) {
     if (!mint || typeof mint !== "string") return "";
     if (mint.length <= 14) return mint;
@@ -209,7 +195,6 @@ export default function PublicProfileView({ user, onBack }) {
   }
 
   function tokenStatus(t) {
-    // Placeholder: swap later when you store a real status field
     const activeSignal = Number(t?.holders || 0) > 0 || Number(t?.liquidityUsd || 0) > 0;
     if (activeSignal) return { label: "Active", tone: "good" };
     return { label: "Unknown", tone: "neutral" };
@@ -271,7 +256,7 @@ export default function PublicProfileView({ user, onBack }) {
                     px-3 py-1.5 rounded-full border text-[11px] transition
                     ${
                       isFollowing
-                        ? "border-gray-500 text-gray-300 hover:bg-white/5"
+                        ? "border-gray-500 text-gray-200 hover:bg-white/5"
                         : "border-[#1CEAB9]/60 text-[#1CEAB9] hover:bg-[#1CEAB9]/10"
                     }
                   `}
@@ -297,17 +282,22 @@ export default function PublicProfileView({ user, onBack }) {
             </div>
           </div>
 
-          {/* SCROLL AREA (this is where the scrollbar should appear) */}
-          <div className="overflow-y-auto pr-1" style={{ maxHeight: "calc(100vh - 28px)" }}>
-            {/* Banner + Identity block (no overlap) */}
+          {/* SCROLL AREA (visible scrollbar) */}
+          <div
+            className="overflow-y-auto pr-2"
+            style={{
+              maxHeight: "calc(100vh - 28px)",
+              scrollbarGutter: "stable",
+            }}
+          >
+            {/* Banner */}
             <div className="relative">
-              {/* Banner */}
               <div className="w-full h-40 md:h-48 bg-black/40 border-b border-[#1CEAB9]/10 overflow-hidden">
                 {bannerImageUrl ? (
                   <img
                     src={bannerImageUrl}
                     alt="Banner"
-                    className="w-full h-full object-cover opacity-90"
+                    className="w-full h-full object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
@@ -315,14 +305,13 @@ export default function PublicProfileView({ user, onBack }) {
                   </div>
                 )}
 
-                {/* Subtle fade for readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11]/95 via-[#0B0E11]/25 to-transparent pointer-events-none" />
+                {/* Softer gradient ONLY for readability on the banner area */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11]/80 via-transparent to-transparent pointer-events-none" />
               </div>
 
-              {/* Avatar + name row sits BELOW banner, not overlapping awkwardly */}
+              {/* Identity section */}
               <div className="px-4 pt-4">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  {/* Identity */}
                   <div className="flex items-start gap-4">
                     <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border border-[#1CEAB9]/70 bg-black flex-shrink-0 shadow-[0_0_18px_rgba(28,234,185,0.18)]">
                       {profileImageUrl ? (
@@ -340,7 +329,6 @@ export default function PublicProfileView({ user, onBack }) {
                           {username || "OriginFi Creator"}
                         </h1>
 
-                        {/* Tier pill (secondary) */}
                         <span
                           className={`
                             text-[11px] px-2 py-1 rounded-full border
@@ -348,40 +336,36 @@ export default function PublicProfileView({ user, onBack }) {
                               trust.tier === "High"
                                 ? "border-[#1CEAB9]/60 text-[#1CEAB9] bg-[#1CEAB9]/10"
                                 : trust.tier === "Medium"
-                                ? "border-yellow-400/50 text-yellow-300 bg-yellow-400/10"
-                                : "border-red-400/50 text-red-300 bg-red-400/10"
+                                ? "border-yellow-400/50 text-yellow-200 bg-yellow-400/10"
+                                : "border-red-400/50 text-red-200 bg-red-400/10"
                             }
                           `}
-                          title="Tier derived from the Trust Score."
+                          title="Tier derived from Trust Score."
                         >
                           {trust.tier} trust
                         </span>
                       </div>
 
-                      <p className="text-[12px] md:text-sm text-gray-300 mt-1 max-w-[72ch]">
+                      <p className="text-[12px] md:text-sm text-gray-200 mt-1 max-w-[72ch]">
                         {creatorInfo || "Building on Solana through OriginFi."}
                       </p>
 
                       <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-gray-400">
                         {createdAtString && (
                           <span>
-                            Joined{" "}
-                            <span className="text-[#1CEAB9] font-mono">{createdAtString}</span>
+                            Joined <span className="text-[#1CEAB9] font-mono">{createdAtString}</span>
                           </span>
                         )}
                         <span className="opacity-40">•</span>
                         <span>
-                          <span className="text-[#1CEAB9] font-mono">{safeFollowers}</span>{" "}
-                          Followers
+                          <span className="text-[#1CEAB9] font-mono">{safeFollowers}</span> Followers
                         </span>
                         <span className="opacity-40">•</span>
                         <span>
-                          <span className="text-[#1CEAB9] font-mono">{safeFollowing}</span>{" "}
-                          Following
+                          <span className="text-[#1CEAB9] font-mono">{safeFollowing}</span> Following
                         </span>
                       </div>
 
-                      {/* Social links */}
                       {hasAnySocial && (
                         <div className="mt-3 flex flex-wrap gap-2">
                           {twitterUrl && (
@@ -421,11 +405,11 @@ export default function PublicProfileView({ user, onBack }) {
                     </div>
                   </div>
 
-                  {/* Trust score box (0–100) */}
+                  {/* Trust score box */}
                   <div className="w-full md:w-[360px]">
-                    <div className="rounded-xl border border-[#1CEAB9]/25 bg-black/60 p-4">
+                    <div className="rounded-xl border border-[#1CEAB9]/25 bg-[#050709] p-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] uppercase tracking-wide text-gray-400">
+                        <span className="text-[11px] uppercase tracking-wide text-gray-500">
                           Trust score
                         </span>
                         <span className="text-lg font-semibold text-white">
@@ -434,22 +418,17 @@ export default function PublicProfileView({ user, onBack }) {
                         </span>
                       </div>
 
-                      {/* Progress bar */}
-                      <div className="mt-2 h-2 rounded-full bg-white/5 border border-[#1CEAB9]/10 overflow-hidden">
-                        <div
-                          className="h-full bg-[#1CEAB9]/70"
-                          style={{ width: trustBarWidth }}
-                        />
+                      <div className="mt-2 h-2 rounded-full bg-black border border-[#1CEAB9]/10 overflow-hidden">
+                        <div className="h-full bg-[#1CEAB9]/70" style={{ width: trustBarWidth }} />
                       </div>
 
-                      <p className="mt-2 text-[11px] text-gray-500">
+                      <p className="mt-2 text-[11px] text-gray-400">
                         Based on launches, badges, and available on-chain activity.
                       </p>
 
-                      {/* Creator level (secondary) */}
-                      <div className="mt-3 rounded-lg border border-[#1CEAB9]/15 bg-[#050709] px-3 py-2">
+                      <div className="mt-3 rounded-lg border border-[#1CEAB9]/15 bg-black p-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] text-gray-400">Creator level</span>
+                          <span className="text-[11px] text-gray-500">Creator level</span>
                           <span className="text-[12px] font-semibold text-[#1CEAB9]">
                             {creatorLevel.label}
                           </span>
@@ -461,26 +440,26 @@ export default function PublicProfileView({ user, onBack }) {
                 </div>
 
                 {/* About + Track record */}
-                <div className="mt-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3 px-4">
+                <div className="mt-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="md:col-span-2 rounded-xl border border-[#1CEAB9]/25 bg-[#050709] p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h2 className="text-sm font-semibold text-white">About</h2>
                       <span className="text-[11px] text-gray-500">Public profile</span>
                     </div>
-                    <div className="rounded-lg border border-[#1CEAB9]/15 bg-black/60 p-3 text-sm text-gray-200 min-h-[72px]">
+                    <div className="rounded-lg border border-[#1CEAB9]/15 bg-black p-3 text-sm text-gray-200 min-h-[72px]">
                       {bio || "This creator hasn’t added a bio yet."}
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-[#1CEAB9]/25 bg-black/60 p-4">
+                  <div className="rounded-xl border border-[#1CEAB9]/25 bg-[#050709] p-4">
                     <h3 className="text-sm font-semibold text-white mb-2">Track record</h3>
                     <div className="grid grid-cols-2 gap-3">
                       {receipts.map((r) => (
                         <div
                           key={r.label}
-                          className="rounded-lg border border-[#1CEAB9]/15 bg-[#050709] px-3 py-2"
+                          className="rounded-lg border border-[#1CEAB9]/15 bg-black px-3 py-2"
                         >
-                          <p className="text-[10px] uppercase tracking-wide text-gray-400">
+                          <p className="text-[10px] uppercase tracking-wide text-gray-500">
                             {r.label}
                           </p>
                           <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">
@@ -490,22 +469,20 @@ export default function PublicProfileView({ user, onBack }) {
                       ))}
                     </div>
                     <p className="mt-2 text-[10px] text-gray-500">
-                      This expands when authority actions + token lifecycle are tracked.
+                      Expands when authority actions + lifecycle are tracked.
                     </p>
                   </div>
                 </div>
 
                 {/* Badges */}
-                <div className="px-4 pb-2">
+                <div className="pb-2">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-white">Badges</h3>
-                    <span className="text-[11px] text-gray-500">
-                      {displayedBadges.length} shown
-                    </span>
+                    <span className="text-[11px] text-gray-500">{displayedBadges.length} shown</span>
                   </div>
 
                   {displayedBadges.length === 0 ? (
-                    <div className="rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4 text-xs text-gray-500">
+                    <div className="rounded-xl border border-[#1CEAB9]/15 bg-[#050709] p-4 text-xs text-gray-500">
                       No badges unlocked yet.
                     </div>
                   ) : (
@@ -514,11 +491,7 @@ export default function PublicProfileView({ user, onBack }) {
                         <div
                           key={badge.name}
                           className="px-3 py-2 rounded-xl border border-[#1CEAB9]/25 bg-[#050709] hover:bg-[#1CEAB9]/10 transition"
-                          title={
-                            badge.description
-                              ? `${badge.name} — ${badge.description}`
-                              : badge.name
-                          }
+                          title={badge.description ? `${badge.name} — ${badge.description}` : badge.name}
                         >
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-full border border-[#1CEAB9]/45 bg-black flex items-center justify-center text-[12px] text-[#1CEAB9]">
@@ -548,7 +521,7 @@ export default function PublicProfileView({ user, onBack }) {
               </div>
 
               {!pinnedToken ? (
-                <div className="rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4 text-xs text-gray-500">
+                <div className="rounded-xl border border-[#1CEAB9]/15 bg-[#050709] p-4 text-xs text-gray-500">
                   No launches pinned yet.
                 </div>
               ) : (
@@ -570,7 +543,7 @@ export default function PublicProfileView({ user, onBack }) {
               </div>
 
               {!tokens || tokens.length === 0 ? (
-                <div className="rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4 text-xs text-gray-500">
+                <div className="rounded-xl border border-[#1CEAB9]/15 bg-[#050709] p-4 text-xs text-gray-500">
                   This creator hasn&apos;t launched any tokens through OriginFi yet.
                 </div>
               ) : (
@@ -589,7 +562,7 @@ export default function PublicProfileView({ user, onBack }) {
               )}
 
               {/* On-chain performance */}
-              <div className="mt-5 rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4">
+              <div className="mt-5 rounded-xl border border-[#1CEAB9]/15 bg-[#050709] p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-white">On-chain performance</h3>
                   <span className="text-[10px] text-gray-500">Aggregated</span>
@@ -603,15 +576,11 @@ export default function PublicProfileView({ user, onBack }) {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                     <Metric
                       label="Total liquidity"
-                      value={`$${aggregate.totalLiquidity.toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      })}`}
+                      value={`$${aggregate.totalLiquidity.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                     />
                     <Metric
                       label="24h volume"
-                      value={`$${aggregate.totalVolume24h.toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      })}`}
+                      value={`$${aggregate.totalVolume24h.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                     />
                     <Metric label="24h trades" value={aggregate.totalTrades24h.toLocaleString()} />
                     <Metric label="Total holders" value={aggregate.totalHolders.toLocaleString()} />
@@ -624,7 +593,6 @@ export default function PublicProfileView({ user, onBack }) {
               </p>
             </div>
 
-            {/* Spacer so last items don’t feel cramped */}
             <div className="h-6" />
           </div>
         </div>
@@ -637,8 +605,8 @@ export default function PublicProfileView({ user, onBack }) {
 
 function Metric({ label, value }) {
   return (
-    <div className="rounded-lg border border-[#1CEAB9]/15 bg-[#050709] px-3 py-2">
-      <p className="text-[10px] uppercase tracking-wide text-gray-400">{label}</p>
+    <div className="rounded-lg border border-[#1CEAB9]/15 bg-black px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
       <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">{value}</p>
     </div>
   );
@@ -663,7 +631,7 @@ function PinnedTokenCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dex
                 ${
                   s.tone === "good"
                     ? "border-[#1CEAB9]/40 text-[#1CEAB9] bg-[#1CEAB9]/10"
-                    : "border-gray-500/40 text-gray-300 bg-white/5"
+                    : "border-gray-500/40 text-gray-200 bg-white/5"
                 }
               `}
             >
@@ -671,9 +639,7 @@ function PinnedTokenCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dex
             </span>
           </div>
 
-          {mint && (
-            <p className="mt-1 text-[11px] text-gray-400 font-mono">{shortMint(mint)}</p>
-          )}
+          {mint && <p className="mt-1 text-[11px] text-gray-400 font-mono">{shortMint(mint)}</p>}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -733,7 +699,7 @@ function LaunchCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dexscree
   const mint = tokenObj?.mintAddress;
 
   return (
-    <div className="rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4 hover:border-[#1CEAB9]/30 transition">
+    <div className="rounded-xl border border-[#1CEAB9]/15 bg-[#050709] p-4 hover:border-[#1CEAB9]/30 transition">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -747,7 +713,7 @@ function LaunchCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dexscree
                 ${
                   s.tone === "good"
                     ? "border-[#1CEAB9]/40 text-[#1CEAB9] bg-[#1CEAB9]/10"
-                    : "border-gray-500/40 text-gray-300 bg-white/5"
+                    : "border-gray-500/40 text-gray-200 bg-white/5"
                 }
               `}
             >
@@ -785,18 +751,15 @@ function LaunchCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dexscree
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-        <div className="rounded-lg border border-[#1CEAB9]/10 bg-[#050709] px-3 py-2">
-          <p className="text-[10px] uppercase tracking-wide text-gray-400">Holders</p>
-          <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">{tokenObj?.holders ?? "—"}</p>
-        </div>
-        <div className="rounded-lg border border-[#1CEAB9]/10 bg-[#050709] px-3 py-2">
-          <p className="text-[10px] uppercase tracking-wide text-gray-400">24h volume</p>
-          <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">
-            {tokenObj?.volume24hUsd
+        <Metric label="Holders" value={String(tokenObj?.holders ?? "—")} />
+        <Metric
+          label="24h volume"
+          value={
+            tokenObj?.volume24hUsd
               ? `$${Number(tokenObj.volume24hUsd).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-              : "—"}
-          </p>
-        </div>
+              : "—"
+          }
+        />
       </div>
     </div>
   );
