@@ -1,9 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
+/**
+ * PublicProfileView (SOCIAL REWORK)
+ * Goal: make this feel like a creator social profile (X/IG vibes) where:
+ * - Identity + trust is above the fold
+ * - Launches feel like posts (cards)
+ * - “Receipts” (track record) are loud
+ * - Page never extends past screen; card becomes scroll container
+ *
+ * Notes:
+ * - No backend changes required; uses existing user fields + token fields if present.
+ * - Any missing token stats simply show "—" gracefully.
+ */
 export default function PublicProfileView({ user, onBack }) {
   if (!user) return null;
 
-    const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
   const [localFollowers, setLocalFollowers] = useState(
     typeof user.followersCount === "number" ? user.followersCount : 0
   );
@@ -11,22 +23,19 @@ export default function PublicProfileView({ user, onBack }) {
   const token = localStorage.getItem("originfi_jwt");
   const API = "https://api.originfi.net";
 
-    useEffect(() => {
+  useEffect(() => {
     if (!user?.id || !token) return;
 
     fetch(`${API}/api/protected/follow/status/${user.id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
-      .then((data) => {
-        setIsFollowing(!!data.isFollowing);
-      })
+      .then((data) => setIsFollowing(!!data.isFollowing))
       .catch(() => {});
-  }, [user?.id]);
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
+    id,
     username,
     profileImageUrl,
     bannerImageUrl,
@@ -42,31 +51,24 @@ export default function PublicProfileView({ user, onBack }) {
     discordUrl,
     websiteUrl,
     telegramUrl,
-    followersCount,
     followingCount,
   } = user;
 
-  const createdAtString = createdAt
-    ? new Date(createdAt).toLocaleDateString()
-    : null;
+  const createdAtString = createdAt ? new Date(createdAt).toLocaleDateString() : null;
+  const safeFollowers = localFollowers;
+  const safeFollowing = typeof followingCount === "number" ? followingCount : 0;
 
-      async function toggleFollow() {
+  async function toggleFollow() {
     if (!token) {
       alert("Please log in to follow creators.");
       return;
     }
 
     const method = isFollowing ? "DELETE" : "POST";
-
-    const res = await fetch(
-      `${API}/api/protected/follow/${user.id}`,
-      {
-        method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const res = await fetch(`${API}/api/protected/follow/${id}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
     const data = await res.json();
     if (!res.ok) {
@@ -76,66 +78,68 @@ export default function PublicProfileView({ user, onBack }) {
 
     setIsFollowing(data.isFollowing);
 
-    // update followers count instantly
     if (typeof data.followersCount === "number") {
       setLocalFollowers(data.followersCount);
     }
   }
 
-  // Decide which badges to show: featured ones if set, else all
+  const hasAnySocial = twitterUrl || discordUrl || websiteUrl || telegramUrl;
+
+  // Featured badges: if you store ids as names (current behavior), we keep it.
+  // If later you store numeric ids, swap includes(b.name) -> includes(b.id)
   const displayedBadges =
-    featuredBadgeIds && featuredBadgeIds.length > 0
-      ? badges.filter(
-          (b) =>
-            typeof b.name === "string" && featuredBadgeIds.includes(b.name)
-        )
-      : badges;
+    Array.isArray(featuredBadgeIds) && featuredBadgeIds.length > 0
+      ? (badges || []).filter((b) => b?.name && featuredBadgeIds.includes(b.name))
+      : badges || [];
 
-  // Recent tokens (up to 3)
-  const recentTokens = [...tokens]
-    .sort((a, b) => {
-      const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bDate - aDate;
-    })
-    .slice(0, 3);
+  // Aggregate across tokens (best-effort with your existing placeholder fields)
+  const aggregate = useMemo(() => {
+    return (tokens || []).reduce(
+      (acc, t) => {
+        const liq = Number(t?.liquidityUsd || 0);
+        const vol = Number(t?.volume24hUsd || 0);
+        const trades = Number(t?.trades24h || 0);
+        const holders = Number(t?.holders || 0);
 
-  // "Most popular" token – placeholder logic
-  const mostPopularToken =
-    tokens.length > 0
-      ? [...tokens].sort((a, b) => {
-          const aScore =
-            (a.holders || 0) + (a.volume24hUsd || 0) + (a.trades24h || 0);
-          const bScore =
-            (b.holders || 0) + (b.volume24hUsd || 0) + (b.trades24h || 0);
-          return bScore - aScore;
-        })[0]
-      : null;
+        return {
+          totalLiquidity: acc.totalLiquidity + (isNaN(liq) ? 0 : liq),
+          totalVolume24h: acc.totalVolume24h + (isNaN(vol) ? 0 : vol),
+          totalTrades24h: acc.totalTrades24h + (isNaN(trades) ? 0 : trades),
+          totalHolders: acc.totalHolders + (isNaN(holders) ? 0 : holders),
+        };
+      },
+      {
+        totalLiquidity: 0,
+        totalVolume24h: 0,
+        totalTrades24h: 0,
+        totalHolders: 0,
+      }
+    );
+  }, [tokens]);
 
-  // Aggregate on-chain performance across all tokens
-  const aggregate = tokens.reduce(
-    (acc, t) => {
-      const liq = Number(t.liquidityUsd || 0);
-      const vol = Number(t.volume24hUsd || 0);
-      const trades = Number(t.trades24h || 0);
-      const holders = Number(t.holders || 0);
+  // Recent launches (feed-like)
+  const recentTokens = useMemo(() => {
+    return [...(tokens || [])]
+      .sort((a, b) => {
+        const aDate = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bDate = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bDate - aDate;
+      })
+      .slice(0, 12);
+  }, [tokens]);
 
-      return {
-        totalLiquidity: acc.totalLiquidity + (isNaN(liq) ? 0 : liq),
-        totalVolume24h: acc.totalVolume24h + (isNaN(vol) ? 0 : vol),
-        totalTrades24h: acc.totalTrades24h + (isNaN(trades) ? 0 : trades),
-        totalHolders: acc.totalHolders + (isNaN(holders) ? 0 : holders),
-      };
-    },
-    {
-      totalLiquidity: 0,
-      totalVolume24h: 0,
-      totalTrades24h: 0,
-      totalHolders: 0,
-    }
-  );
+  // Pinned / “Best” launch (placeholder score)
+  const pinnedToken = useMemo(() => {
+    if (!tokens || tokens.length === 0) return null;
+    const sorted = [...tokens].sort((a, b) => {
+      const aScore = (a?.holders || 0) + (a?.volume24hUsd || 0) + (a?.trades24h || 0);
+      const bScore = (b?.holders || 0) + (b?.volume24hUsd || 0) + (b?.trades24h || 0);
+      return bScore - aScore;
+    });
+    return sorted[0] || null;
+  }, [tokens]);
 
-  // Long-term oriented creator level system
+  // Creator Level (keep your system, but we'll present it as secondary to “Reputation”)
   function computeCreatorLevel(tokensArr, badgesArr, agg) {
     const numTokens = tokensArr.length;
     const numBadges = badgesArr.length;
@@ -148,501 +152,630 @@ export default function PublicProfileView({ user, onBack }) {
       Math.min(agg.totalHolders * 0.5, 300);
 
     if (xp < 50) {
-      return {
-        label: "Newcomer",
-        description: "Just getting started on OriginFi. Early in their journey.",
-      };
+      return { label: "Newcomer", description: "Early in their OriginFi journey." };
     }
     if (xp < 200) {
-      return {
-        label: "Emerging Builder",
-        description:
-          "Actively experimenting with launches and starting to ship.",
-      };
+      return { label: "Emerging Builder", description: "Shipping and gaining traction." };
     }
     if (xp < 600) {
-      return {
-        label: "Seasoned Architect",
-        description:
-          "Consistent creator with traction, volume, and community signals.",
-      };
+      return { label: "Seasoned Architect", description: "Consistent creator with strong signals." };
     }
     return {
       label: "Meta Origin",
-      description:
-        "High-impact builder with strong on-chain footprint across liquidity, volume, and holders.",
+      description: "High-impact creator with major on-chain footprint.",
     };
   }
 
-  const creatorLevel = computeCreatorLevel(tokens, badges, aggregate);
+  const creatorLevel = computeCreatorLevel(tokens || [], badges || [], aggregate);
 
-  const hasAnySocial =
-    twitterUrl || discordUrl || websiteUrl || telegramUrl;
+  /**
+   * Reputation score v1 (no backend change)
+   * Emphasis: longevity and responsibility signals.
+   * Since we don't have authority-history fields in tokens here, we use what we can:
+   * - tokens count, badges count
+   * - aggregate liquidity/volume/holders (capped)
+   *
+   * You can later replace this with real “receipts” (mint revoked %, freeze revoked %, metadata locked %)
+   * as soon as those exist in your token records.
+   */
+  const reputation = useMemo(() => {
+    const numTokens = (tokens || []).length;
+    const numBadges = (badges || []).length;
 
-  const safeFollowers = localFollowers;
-  const safeFollowing = typeof followingCount === "number" ? followingCount : 0;
+    const score =
+      numTokens * 6 +
+      numBadges * 4 +
+      Math.min(aggregate.totalHolders / 150, 25) +
+      Math.min(aggregate.totalLiquidity / 2000, 25) +
+      Math.min(aggregate.totalVolume24h / 5000, 20);
+
+    const normalized = Math.max(0, Math.min(100, Math.round(score)));
+    let tier = "Low";
+    if (normalized >= 70) tier = "High";
+    else if (normalized >= 40) tier = "Medium";
+
+    return { score: normalized, tier };
+  }, [tokens, badges, aggregate]);
+
+  // Social “receipts” row (best-effort)
+  const receipts = useMemo(() => {
+    return [
+      {
+        label: "Launches",
+        value: String((tokens || []).length),
+      },
+      {
+        label: "Active signals",
+        value: aggregate.totalHolders > 0 ? "Yes" : "—",
+        hint: "Based on holder activity data available.",
+      },
+      {
+        label: "Total holders",
+        value: (aggregate.totalHolders || 0).toLocaleString(),
+      },
+      {
+        label: "24h volume",
+        value:
+          tokens?.length > 0
+            ? `$${aggregate.totalVolume24h.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+            : "—",
+      },
+    ];
+  }, [tokens, aggregate]);
+
+  // Helpers
+  function shortMint(mint) {
+    if (!mint || typeof mint !== "string") return "";
+    if (mint.length <= 12) return mint;
+    return `${mint.slice(0, 5)}…${mint.slice(-5)}`;
+  }
+
+  function tokenStatus(t) {
+    // Placeholder: you can swap this once you store a real status field.
+    // For now: if holders/liq/vol exist -> Active
+    const activeSignal = Number(t?.holders || 0) > 0 || Number(t?.liquidityUsd || 0) > 0;
+    if (activeSignal) return { label: "Active", tone: "good" };
+    return { label: "Unknown", tone: "neutral" };
+  }
+
+  function openExternal(url) {
+    if (!url) return;
+    window.open(url, "_blank", "noreferrer");
+  }
+
+  // Dex links (best-effort). If you later store pairAddress, use that.
+  function solscanMintUrl(mint) {
+    if (!mint) return null;
+    return `https://solscan.io/token/${mint}`;
+  }
+
+  function dexscreenerUrl(mint) {
+    if (!mint) return null;
+    return `https://dexscreener.com/solana/${mint}`;
+  }
 
   return (
-    <div className="w-full flex justify-center mt-1 px-4 mb-16">
-      {/* Wider and slightly tighter padding */}
-      <div className="w-full max-w-6xl rounded-2xl bg-[#0B0E11] border border-[#1CEAB9]/60 shadow-[0_0_25px_rgba(28,234,185,0.18)] p-5 md:p-6">
-        {/* Top row: back button + centered logo + follow button slot */}
-        <div className="flex items-center justify-between mb-3">
-          <button
-            onClick={onBack}
-            className="
-              px-4 py-1.5
-              rounded-lg
-              border border-[#1CEAB9]/50
-              text-xs md:text-sm
-              text-white
-              hover:bg-[#1CEAB9]/10
-              transition
-            "
-          >
-            ← Back
-          </button>
+    // Fullscreen overlay container. The card is the scroll area.
+    <div className="w-full px-4">
+      <div className="mx-auto w-full max-w-6xl">
+        {/* Card with internal scroll to prevent expanding past screen */}
+        <div
+          className="
+            mt-2
+            rounded-2xl
+            bg-[#0B0E11]
+            border border-[#1CEAB9]/60
+            shadow-[0_0_25px_rgba(28,234,185,0.18)]
+            overflow-hidden
+          "
+          style={{
+            // Card never exceeds viewport; content scrolls inside
+            maxHeight: "calc(100vh - 28px)",
+          }}
+        >
+          {/* Sticky top bar inside the card */}
+          <div className="sticky top-0 z-10 bg-[#0B0E11]/95 backdrop-blur border-b border-[#1CEAB9]/15">
+            <div className="flex items-center justify-between px-4 py-3">
+              <button
+                onClick={onBack}
+                className="px-3 py-1.5 rounded-lg border border-[#1CEAB9]/50 text-xs text-white hover:bg-[#1CEAB9]/10 transition"
+              >
+                ← Back
+              </button>
 
-          <div className="flex-1 flex justify-center">
-            <div className="text-xl md:text-2xl font-extrabold tracking-normal">
-              <span className="text-white">Origin</span>
-              <span className="text-[#1CEAB9]">Fi</span>
+              {/* Center: keep brand tiny; person is the star */}
+              <div className="text-[13px] md:text-sm font-semibold tracking-wide">
+                <span className="text-white">Origin</span>
+                <span className="text-[#1CEAB9]">Fi</span>
+                <span className="text-gray-500"> / Profile</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleFollow}
+                  className={`
+                    px-3 py-1.5 rounded-full border text-[11px] transition
+                    ${
+                      isFollowing
+                        ? "border-gray-500 text-gray-300 hover:bg-white/5"
+                        : "border-[#1CEAB9]/60 text-[#1CEAB9] hover:bg-[#1CEAB9]/10"
+                    }
+                  `}
+                >
+                  {isFollowing ? "Following" : "Follow"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      navigator.clipboard.writeText(window.location.href);
+                      // no toast system here, keep it simple
+                      alert("Profile link copied.");
+                    } catch {
+                      alert("Copy failed.");
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-full border border-[#1CEAB9]/25 text-[11px] text-gray-200 hover:bg-[#1CEAB9]/10 transition"
+                >
+                  Share
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Follow button placeholder – ready for wiring later */}
-          <div className="flex justify-end w-[90px]">
-            <button
-              type="button"
-              onClick={toggleFollow}
-              className={`
-                px-3 py-1
-                rounded-full
-                border
-                text-[11px]
-                transition
-                ${
-                  isFollowing
-                    ? "border-gray-500 text-gray-300 hover:bg-white/5"
-                    : "border-[#1CEAB9]/60 text-[#1CEAB9] hover:bg-[#1CEAB9]/10"
-                }
-              `}
-            >
-              {isFollowing ? "Unfollow" : "Follow"}
-            </button>
+          {/* Scrollable content area */}
+          <div className="overflow-y-auto">
+            {/* Banner */}
+            <div className="relative">
+              <div className="w-full h-36 md:h-44 bg-black/40 border-b border-[#1CEAB9]/10">
+                {bannerImageUrl ? (
+                  <img
+                    src={bannerImageUrl}
+                    alt="Banner"
+                    className="w-full h-full object-cover opacity-90"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+                    No banner set
+                  </div>
+                )}
+              </div>
+
+              {/* Avatar + primary identity card overlays banner */}
+              <div className="px-4">
+                <div className="-mt-10 md:-mt-12 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                  {/* Left identity */}
+                  <div className="flex items-end gap-4">
+                    <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border border-[#1CEAB9]/70 bg-black flex-shrink-0 shadow-[0_0_18px_rgba(28,234,185,0.18)]">
+                      {profileImageUrl ? (
+                        <img src={profileImageUrl} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-3xl md:text-4xl font-semibold text-[#1CEAB9]">
+                          {(username || "?").charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pb-2">
+                      <div className="flex items-center gap-2">
+                        <h1 className="text-2xl md:text-3xl font-semibold text-white leading-tight">
+                          {username || "OriginFi Creator"}
+                        </h1>
+
+                        {/* Trust tier pill */}
+                        <span
+                          className={`
+                            text-[11px] px-2 py-1 rounded-full border
+                            ${
+                              reputation.tier === "High"
+                                ? "border-[#1CEAB9]/60 text-[#1CEAB9] bg-[#1CEAB9]/10"
+                                : reputation.tier === "Medium"
+                                ? "border-yellow-400/50 text-yellow-300 bg-yellow-400/10"
+                                : "border-red-400/50 text-red-300 bg-red-400/10"
+                            }
+                          `}
+                          title="A best-effort trust signal based on launches, badges, and on-chain activity."
+                        >
+                          Trust: {reputation.tier}
+                        </span>
+                      </div>
+
+                      {/* Mission line (creatorInfo) */}
+                      <p className="text-[12px] md:text-sm text-gray-300 mt-1 max-w-[72ch]">
+                        {creatorInfo || "Building on Solana through OriginFi."}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-gray-400">
+                        {createdAtString && (
+                          <span>
+                            Joined <span className="text-[#1CEAB9] font-mono">{createdAtString}</span>
+                          </span>
+                        )}
+                        <span className="opacity-40">•</span>
+                        <span>
+                          <span className="text-[#1CEAB9] font-mono">{safeFollowers}</span> Followers
+                        </span>
+                        <span className="opacity-40">•</span>
+                        <span>
+                          <span className="text-[#1CEAB9] font-mono">{safeFollowing}</span> Following
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right summary box */}
+                  <div className="w-full md:w-[340px]">
+                    <div className="rounded-xl border border-[#1CEAB9]/25 bg-black/60 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] uppercase tracking-wide text-gray-400">
+                          Reputation score
+                        </span>
+                        <span className="text-lg font-semibold text-white">
+                          <span className="text-[#1CEAB9] font-mono">{reputation.score}</span>
+                          <span className="text-gray-500 text-sm"> / 100</span>
+                        </span>
+                      </div>
+
+                      <div className="mt-2 rounded-lg border border-[#1CEAB9]/15 bg-[#050709] px-3 py-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-gray-400">Creator level</span>
+                          <span className="text-[12px] font-semibold text-[#1CEAB9]">
+                            {creatorLevel.label}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-gray-400">{creatorLevel.description}</p>
+                      </div>
+
+                      {/* Social links compact */}
+                      {hasAnySocial && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {twitterUrl && (
+                            <button
+                              onClick={() => openExternal(twitterUrl)}
+                              className="px-2 py-1 rounded-full border border-[#1CEAB9]/25 text-[11px] text-gray-200 hover:bg-[#1CEAB9]/10 transition"
+                            >
+                              X
+                            </button>
+                          )}
+                          {discordUrl && (
+                            <button
+                              onClick={() => openExternal(discordUrl)}
+                              className="px-2 py-1 rounded-full border border-[#1CEAB9]/25 text-[11px] text-gray-200 hover:bg-[#1CEAB9]/10 transition"
+                            >
+                              Discord
+                            </button>
+                          )}
+                          {websiteUrl && (
+                            <button
+                              onClick={() => openExternal(websiteUrl)}
+                              className="px-2 py-1 rounded-full border border-[#1CEAB9]/25 text-[11px] text-gray-200 hover:bg-[#1CEAB9]/10 transition"
+                            >
+                              Website
+                            </button>
+                          )}
+                          {telegramUrl && (
+                            <button
+                              onClick={() => openExternal(telegramUrl)}
+                              className="px-2 py-1 rounded-full border border-[#1CEAB9]/25 text-[11px] text-gray-200 hover:bg-[#1CEAB9]/10 transition"
+                            >
+                              Telegram
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* About */}
+                <div className="mt-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="md:col-span-2 rounded-xl border border-[#1CEAB9]/25 bg-[#050709] p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h2 className="text-sm font-semibold text-white">About</h2>
+                      <span className="text-[11px] text-gray-500">Public profile</span>
+                    </div>
+                    <div className="rounded-lg border border-[#1CEAB9]/15 bg-black/60 p-3 text-sm text-gray-200 min-h-[72px]">
+                      {bio || "This creator hasn’t added a bio yet."}
+                    </div>
+                  </div>
+
+                  {/* Receipts panel */}
+                  <div className="rounded-xl border border-[#1CEAB9]/25 bg-black/60 p-4">
+                    <h3 className="text-sm font-semibold text-white mb-2">Track record</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {receipts.map((r) => (
+                        <div
+                          key={r.label}
+                          className="rounded-lg border border-[#1CEAB9]/15 bg-[#050709] px-3 py-2"
+                          title={r.hint || ""}
+                        >
+                          <p className="text-[10px] uppercase tracking-wide text-gray-400">{r.label}</p>
+                          <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">{r.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[10px] text-gray-500">
+                      Receipts will expand as OriginFi tracks authority actions and lifecycle outcomes.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Badges */}
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-white">Badges</h3>
+                    <span className="text-[11px] text-gray-500">
+                      {displayedBadges.length} shown
+                    </span>
+                  </div>
+
+                  {displayedBadges.length === 0 ? (
+                    <div className="rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4 text-xs text-gray-500">
+                      No badges unlocked yet.
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {displayedBadges.slice(0, 12).map((badge) => (
+                        <div
+                          key={badge.name}
+                          className="px-3 py-2 rounded-xl border border-[#1CEAB9]/25 bg-[#050709] hover:bg-[#1CEAB9]/10 transition"
+                          title={
+                            badge.description
+                              ? `${badge.name} — ${badge.description}`
+                              : badge.name
+                          }
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full border border-[#1CEAB9]/45 bg-black flex items-center justify-center text-[12px] text-[#1CEAB9]">
+                              {badge.icon || "★"}
+                            </div>
+                            <div className="flex flex-col leading-tight">
+                              <span className="text-[12px] text-white">{badge.name}</span>
+                              <span className="text-[10px] text-gray-400">
+                                {badge.description ? badge.description.slice(0, 42) : "Verified signal"}
+                                {badge.description && badge.description.length > 42 ? "…" : ""}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Pinned launch */}
+            <div className="px-4 pb-2">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-white">Pinned launch</h3>
+                <span className="text-[11px] text-gray-500">
+                  Best-performing launch (v1)
+                </span>
+              </div>
+
+              {!pinnedToken ? (
+                <div className="rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4 text-xs text-gray-500">
+                  No launches pinned yet.
+                </div>
+              ) : (
+                <PinnedTokenCard tokenObj={pinnedToken} tokenStatus={tokenStatus} shortMint={shortMint} solscanMintUrl={solscanMintUrl} dexscreenerUrl={dexscreenerUrl} />
+              )}
+            </div>
+
+            {/* Launches feed */}
+            <div className="px-4 pb-6">
+              <div className="flex items-center justify-between mt-4 mb-2">
+                <h3 className="text-sm font-semibold text-white">Launches</h3>
+                <span className="text-[11px] text-gray-500">{tokens?.length || 0} total</span>
+              </div>
+
+              {(!tokens || tokens.length === 0) ? (
+                <div className="rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4 text-xs text-gray-500">
+                  This creator hasn&apos;t launched any tokens through OriginFi yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {recentTokens.map((t) => (
+                    <LaunchCard
+                      key={t?.id || t?.mintAddress || Math.random()}
+                      tokenObj={t}
+                      tokenStatus={tokenStatus}
+                      shortMint={shortMint}
+                      solscanMintUrl={solscanMintUrl}
+                      dexscreenerUrl={dexscreenerUrl}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* On-chain performance (secondary, below feed) */}
+              <div className="mt-5 rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-white">On-chain performance</h3>
+                  <span className="text-[10px] text-gray-500">Aggregated across launches</span>
+                </div>
+
+                {(!tokens || tokens.length === 0) ? (
+                  <p className="text-xs text-gray-500">
+                    Once this creator launches tokens with on-chain activity, liquidity, volume and holder stats will appear here.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    <Metric label="Total liquidity" value={`$${aggregate.totalLiquidity.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+                    <Metric label="24h volume" value={`$${aggregate.totalVolume24h.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+                    <Metric label="24h trades" value={aggregate.totalTrades24h.toLocaleString()} />
+                    <Metric label="Total holders" value={aggregate.totalHolders.toLocaleString()} />
+                  </div>
+                )}
+              </div>
+
+              {/* Follow value hint */}
+              <p className="mt-4 text-[11px] text-gray-500">
+                Following will surface this creator’s launches in your feed (coming soon).
+              </p>
+            </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        {/* Banner – slightly shorter */}
-        <div className="w-full h-28 md:h-32 rounded-xl overflow-hidden bg-black/40 border border-[#1CEAB9]/25 mb-4">
-          {bannerImageUrl ? (
-            <img
-              src={bannerImageUrl}
-              alt="Banner"
-              className="w-full h-full object-cover opacity-90"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
-              No banner set
-            </div>
+/* ---------- Small UI helpers (kept inline for “whole file” reliability) ---------- */
+
+function Metric({ label, value }) {
+  return (
+    <div className="rounded-lg border border-[#1CEAB9]/15 bg-[#050709] px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wide text-gray-400">{label}</p>
+      <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">{value}</p>
+    </div>
+  );
+}
+
+function PinnedTokenCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dexscreenerUrl }) {
+  const s = tokenStatus(tokenObj);
+  const mint = tokenObj?.mintAddress;
+
+  return (
+    <div className="rounded-2xl border border-[#1CEAB9]/25 bg-[#050709] p-4 shadow-[0_0_18px_rgba(28,234,185,0.10)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-semibold text-white">{tokenObj?.name || "Unnamed Token"}</span>
+            {tokenObj?.symbol && (
+              <span className="text-[12px] text-[#1CEAB9]">{tokenObj.symbol}</span>
+            )}
+            <span
+              className={`
+                ml-1 text-[10px] px-2 py-1 rounded-full border
+                ${s.tone === "good" ? "border-[#1CEAB9]/40 text-[#1CEAB9] bg-[#1CEAB9]/10" : "border-gray-500/40 text-gray-300 bg-white/5"}
+              `}
+            >
+              {s.label}
+            </span>
+          </div>
+
+          {mint && (
+            <p className="mt-1 text-[11px] text-gray-400 font-mono">
+              {shortMint(mint)}
+            </p>
           )}
         </div>
 
-        {/* Avatar + username + badges inline */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
-          {/* Left: avatar + username + creator info + social */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-4">
-              <div className="w-18 h-18 md:w-20 md:h-20 rounded-full overflow-hidden border border-[#1CEAB9]/60 bg-black flex-shrink-0">
-                {profileImageUrl ? (
-                  <img
-                    src={profileImageUrl}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-2xl md:text-3xl font-semibold text-[#1CEAB9]">
-                    {(username || "?").charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
+        <div className="flex items-center gap-2">
+          {dexscreenerUrl(mint) && (
+            <a
+              href={dexscreenerUrl(mint)}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded-full border border-[#1CEAB9]/25 text-[11px] text-gray-200 hover:bg-[#1CEAB9]/10 transition"
+            >
+              Dex
+            </a>
+          )}
+          {solscanMintUrl(mint) && (
+            <a
+              href={solscanMintUrl(mint)}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded-full border border-[#1CEAB9]/25 text-[11px] text-gray-200 hover:bg-[#1CEAB9]/10 transition"
+            >
+              Solscan
+            </a>
+          )}
+        </div>
+      </div>
 
-              <div className="flex flex-col">
-                <h1 className="text-xl md:text-2xl font-semibold text-white">
-                  {username || "OriginFi Creator"}
-                </h1>
-                {creatorInfo && (
-                  <p className="text-xs text-gray-300 mt-1">
-                    {creatorInfo}
-                  </p>
-                )}
-                {createdAtString && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Member since{" "}
-                    <span className="text-[#1CEAB9]">
-                      {createdAtString}
-                    </span>
-                  </p>
-                )}
+      <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <Metric label="Holders" value={String(tokenObj?.holders ?? "—")} />
+        <Metric label="24h volume" value={tokenObj?.volume24hUsd ? `$${Number(tokenObj.volume24hUsd).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"} />
+        <Metric label="Liquidity" value={tokenObj?.liquidityUsd ? `$${Number(tokenObj.liquidityUsd).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"} />
+        <Metric label="24h trades" value={String(tokenObj?.trades24h ?? "—")} />
+      </div>
 
-                {/* Followers / Following small row */}
-                <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-400">
-                  <span>
-                    <span className="text-[#1CEAB9] font-mono">
-                      {safeFollowers}
-                    </span>{" "}
-                    Followers
-                  </span>
-                  <span className="opacity-40">•</span>
-                  <span>
-                    <span className="text-[#1CEAB9] font-mono">
-                      {safeFollowing}
-                    </span>{" "}
-                    Following
-                  </span>
-                </div>
-              </div>
-            </div>
+      <p className="mt-3 text-[11px] text-gray-500">
+        Pinned launch highlights the most active token based on holders/volume/trades (v1 logic).
+      </p>
+    </div>
+  );
+}
 
-            {/* Social links row – small, compact */}
-            {hasAnySocial && (
-              <div className="flex flex-wrap gap-2 text-[11px] text-gray-300 mt-1">
-                {twitterUrl && (
-                  <a
-                    href={twitterUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="
-                      px-2 py-1
-                      rounded-full
-                      border border-[#1CEAB9]/40
-                      bg-black
-                      hover:bg-[#1CEAB9]/10
-                      transition
-                    "
-                  >
-                    X / Twitter
-                  </a>
-                )}
-                {discordUrl && (
-                  <a
-                    href={discordUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="
-                      px-2 py-1
-                      rounded-full
-                      border border-[#1CEAB9]/40
-                      bg-black
-                      hover:bg-[#1CEAB9]/10
-                      transition
-                    "
-                  >
-                    Discord
-                  </a>
-                )}
-                {websiteUrl && (
-                  <a
-                    href={websiteUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="
-                      px-2 py-1
-                      rounded-full
-                      border border-[#1CEAB9]/40
-                      bg-black
-                      hover:bg-[#1CEAB9]/10
-                      transition
-                    "
-                  >
-                    Website
-                  </a>
-                )}
-                {telegramUrl && (
-                  <a
-                    href={telegramUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="
-                      px-2 py-1
-                      rounded-full
-                      border border-[#1CEAB9]/40
-                      bg-black
-                      hover:bg-[#1CEAB9]/10
-                      transition
-                    "
-                  >
-                    Telegram
-                  </a>
-                )}
-              </div>
+function LaunchCard({ tokenObj, tokenStatus, shortMint, solscanMintUrl, dexscreenerUrl }) {
+  const s = tokenStatus(tokenObj);
+  const mint = tokenObj?.mintAddress;
+
+  return (
+    <div className="rounded-xl border border-[#1CEAB9]/15 bg-black/60 p-4 hover:border-[#1CEAB9]/30 transition">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-semibold text-white truncate">
+              {tokenObj?.name || "Unnamed Token"}
+            </span>
+            {tokenObj?.symbol && (
+              <span className="text-[11px] text-[#1CEAB9]">{tokenObj.symbol}</span>
             )}
+            <span
+              className={`
+                text-[10px] px-2 py-1 rounded-full border
+                ${s.tone === "good" ? "border-[#1CEAB9]/40 text-[#1CEAB9] bg-[#1CEAB9]/10" : "border-gray-500/40 text-gray-300 bg-white/5"}
+              `}
+            >
+              {s.label}
+            </span>
           </div>
 
-          {/* Right: badges row */}
-          <div className="flex flex-wrap gap-2 md:justify-end">
-            {displayedBadges.length === 0 ? (
-              <p className="text-[11px] text-gray-500">
-                No badges unlocked yet.
-              </p>
-            ) : (
-              displayedBadges.slice(0, 10).map((badge) => (
-                <div
-                  key={badge.name}
-                  className="
-                    w-8 h-8
-                    rounded-full
-                    border border-[#1CEAB9]/60
-                    bg-black
-                    flex items-center justify-center
-                    text-[11px]
-                    text-[#1CEAB9]
-                    cursor-default
-                    hover:bg-[#1CEAB9]/10
-                    transition
-                  "
-                  title={
-                    badge.description
-                      ? `${badge.name} — ${badge.description}`
-                      : badge.name
-                  }
-                >
-                  {badge.icon || "★"}
-                </div>
-              ))
-            )}
-          </div>
+          {mint && (
+            <p className="mt-1 text-[11px] text-gray-400 font-mono">
+              {shortMint(mint)}
+            </p>
+          )}
         </div>
 
-        {/* MAIN CONTENT: 2 columns to make it shorter */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* LEFT COLUMN: Bio + Tokens */}
-          <div className="space-y-4">
-            {/* Creator overview / bio */}
-            <div className="rounded-xl border border-[#1CEAB9]/40 bg-[#050709] p-4">
-              <h2 className="text-sm font-semibold text-white mb-1">
-                Creator overview
-              </h2>
-              <p className="text-[11px] text-gray-400 mb-2">
-                Public info about this creator.
-              </p>
-              <div className="rounded-lg border border-[#1CEAB9]/20 bg-black/60 p-3 text-sm text-gray-200 min-h-[60px]">
-                {bio ||
-                  creatorInfo ||
-                  "This creator hasn’t added a bio yet."}
-              </div>
-            </div>
-
-            {/* Tokens (recent & popular) */}
-            <div className="rounded-xl border border-[#1CEAB9]/25 bg-black/60 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-white">
-                  Tokens (recent & popular)
-                </h3>
-                <span className="text-[11px] text-gray-400">
-                  {tokens.length} total
-                </span>
-              </div>
-
-              {tokens.length === 0 ? (
-                <p className="text-xs text-gray-500">
-                  This creator hasn&apos;t launched any tokens through OriginFi
-                  yet.
-                </p>
-              ) : (
-                <div className="space-y-3 text-xs">
-                  {recentTokens.length > 0 && (
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">
-                        Recent
-                      </p>
-                      <div className="space-y-1.5">
-                        {recentTokens.map((token) => (
-                          <div
-                            key={token.id || token.mintAddress}
-                            className="rounded-md border border-[#1CEAB9]/20 bg-[#050709] px-3 py-2"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex flex-col">
-                                <span className="text-[13px] text-white">
-                                  {token.name || "Unnamed Token"}
-                                </span>
-                                {token.symbol && (
-                                  <span className="text-[11px] text-[#1CEAB9]">
-                                    {token.symbol}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[10px] uppercase tracking-wide text-gray-500">
-                                SPL
-                              </span>
-                            </div>
-                            {token.mintAddress && (
-                              <p className="text-[10px] text-gray-400 break-all mt-1">
-                                {token.mintAddress}
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {mostPopularToken && (
-                    <div className="mt-2">
-                      <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">
-                        Most popular
-                      </p>
-                      <div className="rounded-md border border-[#1CEAB9]/30 bg-[#050709] px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex flex-col">
-                            <span className="text-[13px] text-white">
-                              {mostPopularToken.name || "Unnamed Token"}
-                            </span>
-                            {mostPopularToken.symbol && (
-                              <span className="text-[11px] text-[#1CEAB9]">
-                                {mostPopularToken.symbol}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] uppercase tracking-wide text-[#1CEAB9]">
-                            Highlight
-                          </span>
-                        </div>
-                        {mostPopularToken.mintAddress && (
-                          <p className="text-[10px] text-gray-400 break-all mt-1">
-                            {mostPopularToken.mintAddress}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN: Stats + On-chain performance */}
-          <div className="space-y-4">
-            {/* Creator stats (includes level) */}
-            <div className="rounded-xl border border-[#1CEAB9]/25 bg-black/60 p-4">
-              <h3 className="text-sm font-semibold text-white mb-2">
-                Creator stats
-              </h3>
-
-              {/* Creator level row */}
-              <div className="mb-3 rounded-md border border-[#1CEAB9]/35 bg-[#050709] px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] uppercase tracking-wide text-gray-400">
-                    Creator level
-                  </span>
-                  <span className="text-[12px] font-semibold text-[#1CEAB9]">
-                    {creatorLevel.label}
-                  </span>
-                </div>
-                <p className="mt-1 text-[11px] text-gray-400">
-                  {creatorLevel.description}
-                </p>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">Tokens created</span>
-                  <span className="font-mono text-[#1CEAB9]">
-                    {tokens.length}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">Badges earned</span>
-                  <span className="font-mono text-[#1CEAB9]">
-                    {badges.length}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">Has banner</span>
-                  <span className="font-mono text-gray-300">
-                    {bannerImageUrl ? "Yes" : "No"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">Has avatar</span>
-                  <span className="font-mono text-gray-300">
-                    {profileImageUrl ? "Yes" : "No"}
-                  </span>
-                </div>
-                {createdAtString && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Joined</span>
-                    <span className="font-mono text-gray-300">
-                      {createdAtString}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* On-chain performance – now in the right column, not full width */}
-            <div className="rounded-xl border border-[#1CEAB9]/25 bg-black/60 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-white">
-                  On-chain performance
-                </h3>
-                <span className="text-[10px] text-gray-500">
-                  Aggregated across tokens
-                </span>
-              </div>
-
-              {tokens.length === 0 ? (
-                <p className="text-xs text-gray-500">
-                  Once this creator launches tokens with on-chain activity,
-                  liquidity, volume and holder stats will appear here.
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <p className="text-[11px] text-gray-400 mb-0.5">
-                      Total liquidity
-                    </p>
-                    <p className="font-mono text-[#1CEAB9]">
-                      $
-                      {aggregate.totalLiquidity.toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-gray-400 mb-0.5">
-                      24h volume
-                    </p>
-                    <p className="font-mono text-[#1CEAB9]">
-                      $
-                      {aggregate.totalVolume24h.toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-gray-400 mb-0.5">
-                      24h trades
-                    </p>
-                    <p className="font-mono text-[#1CEAB9]">
-                      {aggregate.totalTrades24h.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-gray-400 mb-0.5">
-                      Total holders
-                    </p>
-                    <p className="font-mono text-[#1CEAB9]">
-                      {aggregate.totalHolders.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {dexscreenerUrl(mint) && (
+            <a
+              href={dexscreenerUrl(mint)}
+              target="_blank"
+              rel="noreferrer"
+              className="px-2.5 py-1 rounded-full border border-[#1CEAB9]/20 text-[10px] text-gray-200 hover:bg-[#1CEAB9]/10 transition"
+              title="Open DexScreener"
+            >
+              Dex
+            </a>
+          )}
+          {solscanMintUrl(mint) && (
+            <a
+              href={solscanMintUrl(mint)}
+              target="_blank"
+              rel="noreferrer"
+              className="px-2.5 py-1 rounded-full border border-[#1CEAB9]/20 text-[10px] text-gray-200 hover:bg-[#1CEAB9]/10 transition"
+              title="Open Solscan"
+            >
+              Scan
+            </a>
+          )}
         </div>
+      </div>
 
+      <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+        <div className="rounded-lg border border-[#1CEAB9]/10 bg-[#050709] px-3 py-2">
+          <p className="text-[10px] uppercase tracking-wide text-gray-400">Holders</p>
+          <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">
+            {tokenObj?.holders ?? "—"}
+          </p>
+        </div>
+        <div className="rounded-lg border border-[#1CEAB9]/10 bg-[#050709] px-3 py-2">
+          <p className="text-[10px] uppercase tracking-wide text-gray-400">24h volume</p>
+          <p className="mt-0.5 text-[13px] font-mono text-[#1CEAB9]">
+            {tokenObj?.volume24hUsd
+              ? `$${Number(tokenObj.volume24hUsd).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+              : "—"}
+          </p>
+        </div>
       </div>
     </div>
   );
