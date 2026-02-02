@@ -1,8 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-// IMPORTANT:
-// 1) Ensure TokenProfile.jsx has: export default function TokenProfile(...) {}
-// 2) Ensure this import path is correct.
 import TokenProfile from "./TokenProfile";
 
 export default function PublicProfileView({ user, onBack }) {
@@ -13,8 +9,6 @@ export default function PublicProfileView({ user, onBack }) {
     typeof user.followersCount === "number" ? user.followersCount : 0
   );
   const [selectedToken, setSelectedToken] = useState(null);
-
-  // Track images that failed to load so we can show initials fallback cleanly
   const [brokenImages, setBrokenImages] = useState({});
 
   const token = localStorage.getItem("originfi_jwt");
@@ -38,7 +32,6 @@ export default function PublicProfileView({ user, onBack }) {
     followingCount,
   } = user;
 
-  // Swap view to TokenProfile without routes
   if (selectedToken) {
     return (
       <TokenProfile
@@ -87,7 +80,6 @@ export default function PublicProfileView({ user, onBack }) {
     if (typeof data.followersCount === "number") setLocalFollowers(data.followersCount);
   }
 
-  // Featured badges: assumes featuredBadgeIds stores badge names
   const displayedBadges =
     Array.isArray(featuredBadgeIds) && featuredBadgeIds.length > 0
       ? (badges || []).filter((b) => b?.name && featuredBadgeIds.includes(b.name))
@@ -112,7 +104,6 @@ export default function PublicProfileView({ user, onBack }) {
     );
   }, [tokens]);
 
-  // Trust score 0–100
   const trust = useMemo(() => {
     const numTokens = (tokens || []).length;
     const numBadges = (badges || []).length;
@@ -145,7 +136,6 @@ export default function PublicProfileView({ user, onBack }) {
       .slice(0, 10);
   }, [tokens]);
 
-  // Share URL works even without routes
   const shareUrl = useMemo(() => {
     const origin = window?.location?.origin || "https://originfi.net";
     const path = window?.location?.pathname || "/";
@@ -203,7 +193,7 @@ export default function PublicProfileView({ user, onBack }) {
     return "common";
   }
 
-  // Rarity styles: add INNER glow + readable surface
+  // Rarity styles: INSIDE GLOW + (for legendary) MYTHICAL “woah” aura + shimmer
   const rarity = {
     common: {
       ring: "border-gray-500/35",
@@ -212,9 +202,10 @@ export default function PublicProfileView({ user, onBack }) {
       sub: "text-gray-200",
       surface: "bg-[#101a23]",
       glowStyle: { boxShadow: "inset 0 0 18px rgba(255,255,255,0.04)" },
+      mythic: false,
     },
     uncommon: {
-      ring: "border-emerald-400/50",
+      ring: "border-emerald-400/55",
       dot: "bg-emerald-300",
       name: "text-emerald-100",
       sub: "text-gray-100",
@@ -223,9 +214,10 @@ export default function PublicProfileView({ user, onBack }) {
         boxShadow:
           "inset 0 0 18px rgba(52,211,153,0.18), 0 0 18px rgba(52,211,153,0.12)",
       },
+      mythic: false,
     },
     rare: {
-      ring: "border-sky-400/50",
+      ring: "border-sky-400/55",
       dot: "bg-sky-300",
       name: "text-sky-100",
       sub: "text-gray-100",
@@ -234,9 +226,10 @@ export default function PublicProfileView({ user, onBack }) {
         boxShadow:
           "inset 0 0 18px rgba(56,189,248,0.18), 0 0 18px rgba(56,189,248,0.12)",
       },
+      mythic: false,
     },
     epic: {
-      ring: "border-fuchsia-400/50",
+      ring: "border-fuchsia-400/55",
       dot: "bg-fuchsia-300",
       name: "text-fuchsia-100",
       sub: "text-gray-100",
@@ -245,22 +238,23 @@ export default function PublicProfileView({ user, onBack }) {
         boxShadow:
           "inset 0 0 18px rgba(232,121,249,0.18), 0 0 20px rgba(232,121,249,0.12)",
       },
+      mythic: false,
     },
     legendary: {
-      ring: "border-amber-400/55",
-      dot: "bg-amber-300",
+      ring: "border-amber-300/65",
+      dot: "bg-amber-200",
       name: "text-amber-100",
       sub: "text-gray-100",
-      surface: "bg-[#101a23]",
+      // slightly richer surface so it pops
+      surface: "bg-[#121016]",
       glowStyle: {
         boxShadow:
-          "inset 0 0 18px rgba(251,191,36,0.20), 0 0 22px rgba(251,191,36,0.12)",
+          "inset 0 0 22px rgba(251,191,36,0.28), 0 0 28px rgba(251,191,36,0.18), 0 0 46px rgba(232,121,249,0.10)",
       },
+      mythic: true,
     },
   };
 
-  // Banner overlap fix: make banner taller + reduce pull-up amount so it doesn’t get “covered”
-  // The banner will always stay visible, and the identity block will still feel tight.
   return (
     <div className="w-full px-4">
       <div className="mx-auto w-full max-w-6xl">
@@ -324,7 +318,7 @@ export default function PublicProfileView({ user, onBack }) {
           >
             {/* Banner */}
             <div className="relative">
-              <div className="w-full h-32 md:h-44 bg-black/40 border-b border-[#1CEAB9]/10 overflow-hidden">
+              <div className="w-full h-36 md:h-48 bg-black/40 border-b border-[#1CEAB9]/10 overflow-hidden">
                 {bannerImageUrl ? (
                   <img src={bannerImageUrl} alt="Banner" className="w-full h-full object-cover" />
                 ) : (
@@ -333,12 +327,12 @@ export default function PublicProfileView({ user, onBack }) {
                   </div>
                 )}
 
-                {/* gradient reduced so it doesn’t “cover” the banner */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11]/65 via-transparent to-transparent pointer-events-none" />
+                {/* Make the banner feel less "covered" */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11]/55 via-transparent to-transparent pointer-events-none" />
               </div>
 
-              {/* Identity pulled up less than before */}
-              <div className="px-4 -mt-7 md:-mt-9 pb-3">
+              {/* Identity pulled up even less + give it breathing room */}
+              <div className="px-4 -mt-5 md:-mt-6 pb-3 pt-1">
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-3">
                   {/* Left */}
                   <div className="rounded-2xl border border-[#1CEAB9]/12 bg-[#0E141B] p-4">
@@ -503,6 +497,7 @@ export default function PublicProfileView({ user, onBack }) {
                           <div
                             key={b.name}
                             className={`
+                              relative overflow-hidden
                               rounded-xl border ${s.ring}
                               ${s.surface}
                               px-3 py-2
@@ -512,7 +507,21 @@ export default function PublicProfileView({ user, onBack }) {
                             style={s.glowStyle}
                             title={b.description ? `${b.name} — ${b.description}` : b.name}
                           >
-                            <div className="flex items-center gap-2">
+                            {/* Mythic aura + shimmer only for legendary */}
+                            {s.mythic ? (
+                              <>
+                                <div
+                                  className="absolute -inset-6 opacity-80 pointer-events-none"
+                                  style={{
+                                    background:
+                                      "radial-gradient(circle at 30% 20%, rgba(251,191,36,0.22), transparent 55%), radial-gradient(circle at 70% 80%, rgba(232,121,249,0.16), transparent 55%)",
+                                  }}
+                                />
+                                <div className="badgeShimmer absolute inset-0 opacity-40 pointer-events-none" />
+                              </>
+                            ) : null}
+
+                            <div className="relative z-10 flex items-center gap-2">
                               <div
                                 className={`w-7 h-7 rounded-full border ${s.ring} bg-black flex items-center justify-center text-[12px] ${s.name}`}
                                 style={s.glowStyle}
@@ -520,12 +529,15 @@ export default function PublicProfileView({ user, onBack }) {
                                 {b.icon || "★"}
                               </div>
 
-                              <div className="flex flex-col leading-tight">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[12px] text-white">{b.name}</span>
-                                  <span className="flex items-center gap-1 text-[10px] text-gray-200">
-                                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                                    {r.toUpperCase()}
+                              <div className="flex flex-col leading-tight min-w-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-[12px] text-white truncate">{b.name}</span>
+
+                                  <span className="flex items-center gap-1 text-[10px] text-gray-200 whitespace-nowrap">
+                                    <span
+                                      className={`inline-block w-1.5 h-1.5 rounded-full ${s.dot}`}
+                                    />
+                                    {s.mythic ? "MYTHIC" : r.toUpperCase()}
                                   </span>
                                 </div>
                                 <span className={`text-[10px] ${s.sub}`}>
@@ -569,6 +581,27 @@ export default function PublicProfileView({ user, onBack }) {
                     </div>
                   )}
                 </div>
+
+                {/* Shimmer CSS */}
+                <style>{`
+                  .badgeShimmer {
+                    background: linear-gradient(
+                      110deg,
+                      transparent 0%,
+                      rgba(255,255,255,0.08) 18%,
+                      rgba(251,191,36,0.10) 32%,
+                      rgba(232,121,249,0.10) 48%,
+                      rgba(255,255,255,0.06) 62%,
+                      transparent 80%
+                    );
+                    transform: translateX(-60%);
+                    animation: shimmerMove 2.8s linear infinite;
+                  }
+                  @keyframes shimmerMove {
+                    0% { transform: translateX(-60%); }
+                    100% { transform: translateX(60%); }
+                  }
+                `}</style>
               </div>
             </div>
 
@@ -614,8 +647,7 @@ function TokenCard({
     "";
 
   const thumb = normalizeImgUrl(rawThumb);
-  const thumbKey = mint || `${name}:${symbol}`; // stable key for brokenImages map
-
+  const thumbKey = mint || `${name}:${symbol}`;
   const shouldFallback = !!brokenImages[thumbKey] || !thumb;
 
   return (
@@ -693,25 +725,20 @@ function normalizeImgUrl(url) {
   if (!url || typeof url !== "string") return "";
   const u = url.trim();
 
-  // IPFS
   if (u.startsWith("ipfs://")) {
     const cid = u.replace("ipfs://", "");
     return `https://ipfs.io/ipfs/${cid}`;
   }
 
-  // Arweave “ar://” (not super standard). If you use this, convert to gateway.
   if (u.startsWith("ar://")) {
     const id = u.replace("ar://", "");
     return `https://arweave.net/${id}`;
   }
 
-  // Protocol-relative or missing protocol
   if (u.startsWith("//")) return `https:${u}`;
   if (u.startsWith("http://") || u.startsWith("https://")) return u;
 
-  // If it looks like a domain/path, assume https
   if (u.includes(".") || u.startsWith("/")) return `https://${u.replace(/^\/+/, "")}`;
-
   return u;
 }
 
