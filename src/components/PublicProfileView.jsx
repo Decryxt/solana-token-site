@@ -1,15 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-// Adjust this path to wherever you put TokenProfile.jsx
+// IMPORTANT:
+// 1) Ensure TokenProfile.jsx has: export default function TokenProfile(...) {}
+// 2) Ensure this import path is correct.
 import TokenProfile from "./TokenProfile";
-
-/**
- * PublicProfileView (v4)
- * - Reduced dead space near avatar/handle
- * - Badges: brighter surface + colored glow by rarity
- * - Tokens: thumbnail support + click -> TokenProfile.jsx view (keeps file shorter)
- * - Share: works even if you don't have routes by using query params fallback
- */
 
 export default function PublicProfileView({ user, onBack }) {
   if (!user) return null;
@@ -18,9 +12,10 @@ export default function PublicProfileView({ user, onBack }) {
   const [localFollowers, setLocalFollowers] = useState(
     typeof user.followersCount === "number" ? user.followersCount : 0
   );
-
-  // When a token is selected, we swap view to TokenProfile.jsx (no routing required)
   const [selectedToken, setSelectedToken] = useState(null);
+
+  // Track images that failed to load so we can show initials fallback cleanly
+  const [brokenImages, setBrokenImages] = useState({});
 
   const token = localStorage.getItem("originfi_jwt");
   const API = "https://api.originfi.net";
@@ -36,7 +31,6 @@ export default function PublicProfileView({ user, onBack }) {
     bio,
     creatorInfo,
     featuredBadgeIds = [],
-
     twitterUrl,
     discordUrl,
     websiteUrl,
@@ -44,12 +38,7 @@ export default function PublicProfileView({ user, onBack }) {
     followingCount,
   } = user;
 
-  const createdAtString = createdAt ? new Date(createdAt).toLocaleDateString() : null;
-  const safeFollowers = localFollowers;
-  const safeFollowing = typeof followingCount === "number" ? followingCount : 0;
-  const hasAnySocial = twitterUrl || discordUrl || websiteUrl || telegramUrl;
-
-  // If we’re in the token profile view, render TokenProfile and keep the same “Back” behavior
+  // Swap view to TokenProfile without routes
   if (selectedToken) {
     return (
       <TokenProfile
@@ -59,6 +48,11 @@ export default function PublicProfileView({ user, onBack }) {
       />
     );
   }
+
+  const createdAtString = createdAt ? new Date(createdAt).toLocaleDateString() : null;
+  const safeFollowers = localFollowers;
+  const safeFollowing = typeof followingCount === "number" ? followingCount : 0;
+  const hasAnySocial = twitterUrl || discordUrl || websiteUrl || telegramUrl;
 
   useEffect(() => {
     if (!id || !token) return;
@@ -99,7 +93,6 @@ export default function PublicProfileView({ user, onBack }) {
       ? (badges || []).filter((b) => b?.name && featuredBadgeIds.includes(b.name))
       : badges || [];
 
-  // Aggregate across tokens (best-effort with your existing fields)
   const aggregate = useMemo(() => {
     return (tokens || []).reduce(
       (acc, t) => {
@@ -119,7 +112,7 @@ export default function PublicProfileView({ user, onBack }) {
     );
   }, [tokens]);
 
-  // Trust Score 0–100 (v1)
+  // Trust score 0–100
   const trust = useMemo(() => {
     const numTokens = (tokens || []).length;
     const numBadges = (badges || []).length;
@@ -152,7 +145,7 @@ export default function PublicProfileView({ user, onBack }) {
       .slice(0, 10);
   }, [tokens]);
 
-  // Share URL strategy (works even if you don’t have routes)
+  // Share URL works even without routes
   const shareUrl = useMemo(() => {
     const origin = window?.location?.origin || "https://originfi.net";
     const path = window?.location?.pathname || "/";
@@ -195,7 +188,6 @@ export default function PublicProfileView({ user, onBack }) {
     return n.toLocaleString();
   }
 
-  // Badge rarity + glow styling
   function getBadgeRarity(b) {
     const raw = (b?.rarity || b?.tier || b?.level || b?.rank || "").toString().toLowerCase();
     if (["legendary", "mythic"].includes(raw)) return "legendary";
@@ -211,53 +203,67 @@ export default function PublicProfileView({ user, onBack }) {
     return "common";
   }
 
+  // Rarity styles: add INNER glow + readable surface
   const rarity = {
     common: {
       ring: "border-gray-500/35",
       dot: "bg-gray-300",
       name: "text-gray-100",
-      sub: "text-gray-300",
-      glow: "shadow-none",
-      glowStyle: {},
+      sub: "text-gray-200",
+      surface: "bg-[#101a23]",
+      glowStyle: { boxShadow: "inset 0 0 18px rgba(255,255,255,0.04)" },
     },
     uncommon: {
-      ring: "border-emerald-400/45",
+      ring: "border-emerald-400/50",
       dot: "bg-emerald-300",
       name: "text-emerald-100",
-      sub: "text-gray-200",
-      glow: "shadow-[0_0_24px_rgba(52,211,153,0.18)]",
-      glowStyle: { boxShadow: "0 0 26px rgba(52,211,153,0.18)" },
+      sub: "text-gray-100",
+      surface: "bg-[#101a23]",
+      glowStyle: {
+        boxShadow:
+          "inset 0 0 18px rgba(52,211,153,0.18), 0 0 18px rgba(52,211,153,0.12)",
+      },
     },
     rare: {
-      ring: "border-sky-400/45",
+      ring: "border-sky-400/50",
       dot: "bg-sky-300",
       name: "text-sky-100",
-      sub: "text-gray-200",
-      glow: "shadow-[0_0_24px_rgba(56,189,248,0.18)]",
-      glowStyle: { boxShadow: "0 0 26px rgba(56,189,248,0.18)" },
+      sub: "text-gray-100",
+      surface: "bg-[#101a23]",
+      glowStyle: {
+        boxShadow:
+          "inset 0 0 18px rgba(56,189,248,0.18), 0 0 18px rgba(56,189,248,0.12)",
+      },
     },
     epic: {
-      ring: "border-fuchsia-400/45",
+      ring: "border-fuchsia-400/50",
       dot: "bg-fuchsia-300",
       name: "text-fuchsia-100",
-      sub: "text-gray-200",
-      glow: "shadow-[0_0_26px_rgba(232,121,249,0.18)]",
-      glowStyle: { boxShadow: "0 0 28px rgba(232,121,249,0.18)" },
+      sub: "text-gray-100",
+      surface: "bg-[#101a23]",
+      glowStyle: {
+        boxShadow:
+          "inset 0 0 18px rgba(232,121,249,0.18), 0 0 20px rgba(232,121,249,0.12)",
+      },
     },
     legendary: {
-      ring: "border-amber-400/50",
+      ring: "border-amber-400/55",
       dot: "bg-amber-300",
       name: "text-amber-100",
-      sub: "text-gray-200",
-      glow: "shadow-[0_0_28px_rgba(251,191,36,0.20)]",
-      glowStyle: { boxShadow: "0 0 30px rgba(251,191,36,0.20)" },
+      sub: "text-gray-100",
+      surface: "bg-[#101a23]",
+      glowStyle: {
+        boxShadow:
+          "inset 0 0 18px rgba(251,191,36,0.20), 0 0 22px rgba(251,191,36,0.12)",
+      },
     },
   };
 
+  // Banner overlap fix: make banner taller + reduce pull-up amount so it doesn’t get “covered”
+  // The banner will always stay visible, and the identity block will still feel tight.
   return (
     <div className="w-full px-4">
       <div className="mx-auto w-full max-w-6xl">
-        {/* Card with internal scroll */}
         <div
           className="
             mt-2 rounded-2xl bg-[#0B0E11]
@@ -268,7 +274,7 @@ export default function PublicProfileView({ user, onBack }) {
           style={{ maxHeight: "calc(100vh - 28px)" }}
         >
           {/* Sticky top bar */}
-          <div className="sticky top-0 z-20 bg-[#0B0E11]/95 backdrop-blur border-b border-[#1CEAB9]/15">
+          <div className="sticky top-0 z-30 bg-[#0B0E11]/95 backdrop-blur border-b border-[#1CEAB9]/15">
             <div className="flex items-center justify-between px-4 py-3">
               <button
                 onClick={onBack}
@@ -316,9 +322,9 @@ export default function PublicProfileView({ user, onBack }) {
             className="overflow-y-auto pr-2"
             style={{ maxHeight: "calc(100vh - 28px)", scrollbarGutter: "stable" }}
           >
-            {/* Banner: shorter to reduce dead space */}
+            {/* Banner */}
             <div className="relative">
-              <div className="w-full h-28 md:h-36 bg-black/40 border-b border-[#1CEAB9]/10 overflow-hidden">
+              <div className="w-full h-32 md:h-44 bg-black/40 border-b border-[#1CEAB9]/10 overflow-hidden">
                 {bannerImageUrl ? (
                   <img src={bannerImageUrl} alt="Banner" className="w-full h-full object-cover" />
                 ) : (
@@ -326,18 +332,24 @@ export default function PublicProfileView({ user, onBack }) {
                     No banner set
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11]/85 via-transparent to-transparent pointer-events-none" />
+
+                {/* gradient reduced so it doesn’t “cover” the banner */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11]/65 via-transparent to-transparent pointer-events-none" />
               </div>
 
-              {/* Identity section: pulled up + tighter spacing */}
-              <div className="px-4 -mt-10 md:-mt-12 pb-3">
+              {/* Identity pulled up less than before */}
+              <div className="px-4 -mt-7 md:-mt-9 pb-3">
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-3">
                   {/* Left */}
                   <div className="rounded-2xl border border-[#1CEAB9]/12 bg-[#0E141B] p-4">
                     <div className="flex items-start gap-3">
                       <div className="w-16 h-16 md:w-18 md:h-18 rounded-full overflow-hidden border border-[#1CEAB9]/70 bg-black flex-shrink-0 shadow-[0_0_18px_rgba(28,234,185,0.18)]">
                         {profileImageUrl ? (
-                          <img src={profileImageUrl} alt="Avatar" className="w-full h-full object-cover" />
+                          <img
+                            src={profileImageUrl}
+                            alt="Avatar"
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
                           <div className="flex items-center justify-center h-full text-2xl md:text-3xl font-semibold text-[#1CEAB9]">
                             {(username || "?").charAt(0).toUpperCase()}
@@ -380,11 +392,13 @@ export default function PublicProfileView({ user, onBack }) {
                           )}
                           <span className="opacity-40">•</span>
                           <span>
-                            <span className="text-[#1CEAB9] font-mono">{safeFollowers}</span> Followers
+                            <span className="text-[#1CEAB9] font-mono">{safeFollowers}</span>{" "}
+                            Followers
                           </span>
                           <span className="opacity-40">•</span>
                           <span>
-                            <span className="text-[#1CEAB9] font-mono">{safeFollowing}</span> Following
+                            <span className="text-[#1CEAB9] font-mono">{safeFollowing}</span>{" "}
+                            Following
                           </span>
                         </div>
 
@@ -427,7 +441,7 @@ export default function PublicProfileView({ user, onBack }) {
                       </div>
                     </div>
 
-                    {/* About (compact, brighter surface) */}
+                    {/* About */}
                     <div className="mt-4 rounded-xl border border-[#1CEAB9]/10 bg-black/40 p-3">
                       <div className="flex items-center justify-between mb-1">
                         <h2 className="text-sm font-semibold text-white">About</h2>
@@ -439,7 +453,7 @@ export default function PublicProfileView({ user, onBack }) {
                     </div>
                   </div>
 
-                  {/* Right: Trust (more compact) */}
+                  {/* Right: Trust */}
                   <div className="rounded-2xl border border-[#1CEAB9]/12 bg-[#0E141B] p-4">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] uppercase tracking-wide text-gray-400">
@@ -468,13 +482,11 @@ export default function PublicProfileView({ user, onBack }) {
                   </div>
                 </div>
 
-                {/* Badges (brighter + colored glow) */}
+                {/* Badges */}
                 <div className="mt-3 rounded-2xl border border-[#1CEAB9]/12 bg-[#0E141B] p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-white">Badges</h3>
-                    <span className="text-[11px] text-gray-400">
-                      {displayedBadges.length} shown
-                    </span>
+                    <span className="text-[11px] text-gray-400">{displayedBadges.length} shown</span>
                   </div>
 
                   {displayedBadges.length === 0 ? (
@@ -491,8 +503,8 @@ export default function PublicProfileView({ user, onBack }) {
                           <div
                             key={b.name}
                             className={`
-                              rounded-xl border ${s.ring} ${s.glow}
-                              bg-[#101a23]
+                              rounded-xl border ${s.ring}
+                              ${s.surface}
                               px-3 py-2
                               hover:bg-[#0f1c26]
                               transition
@@ -503,6 +515,7 @@ export default function PublicProfileView({ user, onBack }) {
                             <div className="flex items-center gap-2">
                               <div
                                 className={`w-7 h-7 rounded-full border ${s.ring} bg-black flex items-center justify-center text-[12px] ${s.name}`}
+                                style={s.glowStyle}
                               >
                                 {b.icon || "★"}
                               </div>
@@ -510,7 +523,7 @@ export default function PublicProfileView({ user, onBack }) {
                               <div className="flex flex-col leading-tight">
                                 <div className="flex items-center gap-2">
                                   <span className="text-[12px] text-white">{b.name}</span>
-                                  <span className="flex items-center gap-1 text-[10px] text-gray-300">
+                                  <span className="flex items-center gap-1 text-[10px] text-gray-200">
                                     <span className={`inline-block w-1.5 h-1.5 rounded-full ${s.dot}`} />
                                     {r.toUpperCase()}
                                   </span>
@@ -528,7 +541,7 @@ export default function PublicProfileView({ user, onBack }) {
                   )}
                 </div>
 
-                {/* Tokens (with thumbnails) */}
+                {/* Tokens */}
                 <div className="mt-3 rounded-2xl border border-[#1CEAB9]/12 bg-[#0E141B] p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-white">Tokens</h3>
@@ -549,6 +562,8 @@ export default function PublicProfileView({ user, onBack }) {
                           shortMint={shortMint}
                           formatUsd={formatUsd}
                           formatNumber={formatNumber}
+                          brokenImages={brokenImages}
+                          setBrokenImages={setBrokenImages}
                         />
                       ))}
                     </div>
@@ -576,13 +591,32 @@ function MiniMetric({ label, value }) {
   );
 }
 
-function TokenCard({ tokenObj, onOpen, shortMint, formatUsd, formatNumber }) {
+function TokenCard({
+  tokenObj,
+  onOpen,
+  shortMint,
+  formatUsd,
+  formatNumber,
+  brokenImages,
+  setBrokenImages,
+}) {
   const mint = tokenObj?.mintAddress;
   const name = tokenObj?.name || "Unnamed Token";
   const symbol = tokenObj?.symbol || "";
 
-  const thumbnail =
-    tokenObj?.imageUrl || tokenObj?.logoUrl || tokenObj?.thumbnailUrl || "";
+  const rawThumb =
+    tokenObj?.imageUrl ||
+    tokenObj?.logoUrl ||
+    tokenObj?.thumbnailUrl ||
+    tokenObj?.image ||
+    tokenObj?.icon ||
+    tokenObj?.metadataImage ||
+    "";
+
+  const thumb = normalizeImgUrl(rawThumb);
+  const thumbKey = mint || `${name}:${symbol}`; // stable key for brokenImages map
+
+  const shouldFallback = !!brokenImages[thumbKey] || !thumb;
 
   return (
     <button
@@ -599,7 +633,22 @@ function TokenCard({ tokenObj, onOpen, shortMint, formatUsd, formatNumber }) {
         flex gap-3
       "
     >
-      <TokenThumb thumbnail={thumbnail} name={name} symbol={symbol} />
+      <div className="w-14 h-14 rounded-xl border border-[#1CEAB9]/18 overflow-hidden bg-black flex items-center justify-center flex-shrink-0">
+        {shouldFallback ? (
+          <div className="text-white/90 font-semibold text-sm">
+            {getInitials(symbol || name || "?")}
+          </div>
+        ) : (
+          <img
+            src={thumb}
+            alt="Token thumbnail"
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onError={() => setBrokenImages((p) => ({ ...p, [thumbKey]: true }))}
+          />
+        )}
+      </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
@@ -608,6 +657,7 @@ function TokenCard({ tokenObj, onOpen, shortMint, formatUsd, formatNumber }) {
               <span className="text-[14px] font-semibold text-white truncate">{name}</span>
               {symbol ? <span className="text-[11px] text-[#1CEAB9]">{symbol}</span> : null}
             </div>
+
             {mint ? (
               <div className="mt-1 text-[11px] text-gray-300 font-mono">{shortMint(mint)}</div>
             ) : (
@@ -615,9 +665,7 @@ function TokenCard({ tokenObj, onOpen, shortMint, formatUsd, formatNumber }) {
             )}
           </div>
 
-          <span className="text-[11px] text-gray-300 whitespace-nowrap">
-            View
-          </span>
+          <span className="text-[11px] text-gray-300 whitespace-nowrap">View</span>
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
@@ -639,37 +687,33 @@ function TokenCard({ tokenObj, onOpen, shortMint, formatUsd, formatNumber }) {
   );
 }
 
-function TokenThumb({ thumbnail, name, symbol }) {
-  const label = (symbol || name || "?").trim();
-  const initials = getInitials(label);
-
-  // Deterministic hue based on name/symbol
-  const hue = (hashString(label) % 360 + 360) % 360;
-  const bg = `linear-gradient(135deg, hsla(${hue}, 90%, 55%, 0.22), hsla(${(hue + 60) % 360}, 90%, 55%, 0.10))`;
-
-  return (
-    <div
-      className="
-        w-14 h-14
-        rounded-xl
-        border border-[#1CEAB9]/18
-        overflow-hidden
-        bg-black
-        flex items-center justify-center
-        flex-shrink-0
-      "
-      style={thumbnail ? undefined : { backgroundImage: bg }}
-    >
-      {thumbnail ? (
-        <img src={thumbnail} alt="Token thumbnail" className="w-full h-full object-cover" />
-      ) : (
-        <div className="text-white/90 font-semibold text-sm">{initials}</div>
-      )}
-    </div>
-  );
-}
-
 /* ---------------- small utils ---------------- */
+
+function normalizeImgUrl(url) {
+  if (!url || typeof url !== "string") return "";
+  const u = url.trim();
+
+  // IPFS
+  if (u.startsWith("ipfs://")) {
+    const cid = u.replace("ipfs://", "");
+    return `https://ipfs.io/ipfs/${cid}`;
+  }
+
+  // Arweave “ar://” (not super standard). If you use this, convert to gateway.
+  if (u.startsWith("ar://")) {
+    const id = u.replace("ar://", "");
+    return `https://arweave.net/${id}`;
+  }
+
+  // Protocol-relative or missing protocol
+  if (u.startsWith("//")) return `https:${u}`;
+  if (u.startsWith("http://") || u.startsWith("https://")) return u;
+
+  // If it looks like a domain/path, assume https
+  if (u.includes(".") || u.startsWith("/")) return `https://${u.replace(/^\/+/, "")}`;
+
+  return u;
+}
 
 function getInitials(s) {
   const parts = s
@@ -679,13 +723,4 @@ function getInitials(s) {
     .slice(0, 2);
   const init = parts.map((p) => p[0]).join("");
   return (init || "?").toUpperCase();
-}
-
-function hashString(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
 }
